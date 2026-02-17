@@ -1,20 +1,16 @@
-import { Footer } from '../components/Footer';
-import { EventCard } from '../components/EventCard';
-import { CalendarView } from '../components/CalendarView';
+import { Footer } from '../components/Footer.jsx';
+import { EventCard } from '../components/EventCard.jsx';
+import { CalendarView } from '../components/CalendarView.jsx';
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-interface EventsPageProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const EventsPage = ({ onNavigate }: EventsPageProps) => {
-  const [events, setEvents] = useState<any[]>([]);
-  const [filteredEvents, setFilteredEvents] = useState<any[]>([]);
+export const EventsPage = ({ onNavigate }) => {
+  const [events, setEvents] = useState([]);
+  const [filteredEvents, setFilteredEvents] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [selectedCategory, setSelectedCategory] = useState('All Categories');
   const [eventType, setEventType] = useState('upcoming'); // 'upcoming' or 'past'
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'calendar'
@@ -46,7 +42,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
     }
   };
 
-  const isEventUpcoming = (dateStr: string) => {
+  const isEventUpcoming = (dateStr) => {
     const eventDate = new Date(dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -70,7 +66,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
     setFilteredEvents(filtered);
   };
 
-  const handleRegisterEvent = (eventId: number) => {
+  const handleRegisterEvent = (eventId) => {
     alert(`Successfully registered for event #${eventId}! Check your email for confirmation.`);
     console.log('Event registration for ID:', eventId);
   };
@@ -93,7 +89,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
           </div>
         </div>
       </div>
-      
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
 
         {/* Loading State */}
@@ -107,7 +103,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
             <p className="text-red-700">{error}</p>
-            <button 
+            <button
               onClick={fetchEvents}
               className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
@@ -122,27 +118,27 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
             {/* Filter Section */}
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                <button 
+                <button
                   onClick={() => setEventType('upcoming')}
                   className={`px-4 py-2 rounded-lg font-semibold transition ${
-                    eventType === 'upcoming' 
-                      ? 'bg-blue-600 text-white' 
+                    eventType === 'upcoming'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   Upcoming
                 </button>
-                <button 
+                <button
                   onClick={() => setEventType('past')}
                   className={`px-4 py-2 rounded-lg font-semibold transition ${
-                    eventType === 'past' 
-                      ? 'bg-blue-600 text-white' 
+                    eventType === 'past'
+                      ? 'bg-blue-600 text-white'
                       : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                   }`}
                 >
                   Past
                 </button>
-                <select 
+                <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
@@ -153,7 +149,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
                   <option>Networking</option>
                   <option>Skills</option>
                 </select>
-                <button 
+                <button
                   onClick={() => setViewMode(viewMode === 'grid' ? 'calendar' : 'grid')}
                   className={`px-4 py-2 rounded-lg font-semibold transition ${
                     viewMode === 'calendar'
@@ -169,9 +165,9 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
             {/* Events Grid or Calendar */}
             {viewMode === 'calendar' ? (
               <div className="mb-8">
-                <CalendarView 
-                  events={events.filter(event => 
-                    eventType === 'upcoming' 
+                <CalendarView
+                  events={events.filter(event =>
+                    eventType === 'upcoming'
                       ? isEventUpcoming(event.date)
                       : !isEventUpcoming(event.date)
                   )}
@@ -183,7 +179,7 @@ export const EventsPage = ({ onNavigate }: EventsPageProps) => {
                 {filteredEvents.length > 0 ? (
                   filteredEvents.map((event) => (
                     <div key={event.id}>
-                      <EventCard 
+                      <EventCard
                         {...event}
                         onRegister={() => handleRegisterEvent(event.id)}
                       />

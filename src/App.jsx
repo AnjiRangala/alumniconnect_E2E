@@ -1,36 +1,30 @@
 import { useState } from 'react'
 import React from 'react'
-import { LandingPage } from './pages/LandingPage'
-import { StudentLoginPage } from './pages/StudentLoginPage'
-import { AlumniLoginPage } from './pages/AlumniLoginPage'
-import { LoginPage } from './pages/LoginPage'
-import { RegisterPage } from './pages/RegisterPage'
-import { StudentDashboard } from './pages/StudentDashboard'
-import { AlumniDashboard } from './pages/AlumniDashboard'
-import { AlumniEndorse } from './pages/AlumniEndorse'
-import { AlumniPostJob } from './pages/AlumniPostJob'
-import { AlumniCreateEvent } from './pages/AlumniCreateEvent'
-import { AlumniMentorRequests } from './pages/AlumniMentorRequests'
-import { AlumniAnalytics } from './pages/AlumniAnalytics'
-import { AlumniMenteesDashboard } from './pages/AlumniMenteesDashboard'
-import { MentorDiscoveryPage } from './pages/MentorDiscoveryPage'
-import { EventsPage } from './pages/EventsPage'
-import { JobsPage } from './pages/JobsPage'
-import { ProfilePage } from './pages/ProfilePage'
+import { LandingPage } from './pages/LandingPage.jsx'
+import { StudentLoginPage } from './pages/StudentLoginPage.jsx'
+import { AlumniLoginPage } from './pages/AlumniLoginPage.jsx'
+import { LoginPage } from './pages/LoginPage.jsx'
+import { RegisterPage } from './pages/RegisterPage.jsx'
+import { StudentDashboard } from './pages/StudentDashboard.jsx'
+import { AlumniDashboard } from './pages/AlumniDashboard.jsx'
+import { AlumniEndorse } from './pages/AlumniEndorse.jsx'
+import { AlumniPostJob } from './pages/AlumniPostJob.jsx'
+import { AlumniCreateEvent } from './pages/AlumniCreateEvent.jsx'
+import { AlumniMentorRequests } from './pages/AlumniMentorRequests.jsx'
+import { AlumniAnalytics } from './pages/AlumniAnalytics.jsx'
+import { AlumniMenteesDashboard } from './pages/AlumniMenteesDashboard.jsx'
+import { MentorDiscoveryPage } from './pages/MentorDiscoveryPage.jsx'
+import { EventsPage } from './pages/EventsPage.jsx'
+import { JobsPage } from './pages/JobsPage.jsx'
+import { ProfilePage } from './pages/ProfilePage.jsx'
 import './App.css'
 
-type PageType = 'landing' | 'login' | 'register' | 'student-login' | 'alumni-login' | 'student-register' | 'alumni-register' | 'student-dashboard' | 'alumni-dashboard' | 'alumni-endorse' | 'alumni-post-job' | 'alumni-create-event' | 'alumni-requests' | 'alumni-mentees' | 'alumni-analytics' | 'mentor-discovery' | 'events' | 'jobs' | 'profile'
-
-interface NavigationContextType {
-  navigate: (page: PageType) => void
-}
-
-export const NavigationContext = React.createContext<NavigationContextType | undefined>(undefined)
+export const NavigationContext = React.createContext(undefined)
 
 function App() {
-  const [currentPage, setCurrentPage] = useState<PageType>('landing')
+  const [currentPage, setCurrentPage] = useState('landing')
 
-  const navigate = (page: PageType) => {
+  const navigate = (page) => {
     setCurrentPage(page)
   }
 

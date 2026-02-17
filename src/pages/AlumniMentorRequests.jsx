@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react'
-import { Navbar } from '../components/Navbar'
-import { Footer } from '../components/Footer'
-
-interface AlumniMentorRequestsProps {
-  onNavigate: (page: string) => void
-}
+import { Navbar } from '../components/Navbar.jsx'
+import { Footer } from '../components/Footer.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api'
 
-export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) => {
-  const [requests, setRequests] = useState<any[] | null>(null)
+export const AlumniMentorRequests = ({ onNavigate }) => {
+  const [requests, setRequests] = useState(null)
   const [loading, setLoading] = useState(false)
 
   const loadRequests = async () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const headers: any = {}
+      const headers = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const res = await fetch(`${API_BASE_URL}/mentorship/requests`, { headers })
       if (!res.ok) throw new Error('no-endpoint')
@@ -24,9 +20,9 @@ export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) 
       if (j.success) setRequests(j.data || [])
       else setRequests([])
     } catch (err) {
-        // No fallback - show error message
-        console.error('Error loading requests', err)
-        setRequests([])
+      // No fallback - show error message
+      console.error('Error loading requests', err)
+      setRequests([])
       setLoading(false)
     }
   }
@@ -38,7 +34,7 @@ export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) 
     return () => clearInterval(interval)
   }, [])
 
-  const respondTo = async (id: string, action: 'accept' | 'decline') => {
+  const respondTo = async (id, action) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
@@ -58,7 +54,7 @@ export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) 
     }
   }
 
-  const viewProfile = (studentId: string) => {
+  const viewProfile = (studentId) => {
     localStorage.setItem('viewUserId', studentId)
     onNavigate('profile')
   }
@@ -74,8 +70,8 @@ export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) 
               <p className="text-gray-600">Students have requested mentorship — review and respond.</p>
             </div>
             <div className="flex gap-2">
-              <button 
-                onClick={loadRequests} 
+              <button
+                onClick={loadRequests}
                 disabled={loading}
                 className="px-3 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
               >
@@ -101,8 +97,8 @@ export const AlumniMentorRequests = ({ onNavigate }: AlumniMentorRequestsProps) 
                     <p className="text-xs mt-2"><span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">{(r.status || 'pending').toUpperCase()}</span></p>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <button 
-                      onClick={() => viewProfile(r.studentId)} 
+                    <button
+                      onClick={() => viewProfile(r.studentId)}
                       disabled={!r.studentId}
                       className={`px-3 py-2 rounded ${r.studentId ? 'bg-blue-500 text-white hover:bg-blue-600' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}
                     >

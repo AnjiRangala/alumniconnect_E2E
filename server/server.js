@@ -147,6 +147,7 @@ app.post('/api/mentorship/requests', verifyToken, async (req, res) => {
     const studentId = req.userId;
     if (!studentId) return res.status(401).json({ success:false, message: 'Unauthorized' });
     if (!mentorId) return res.status(400).json({ success:false, message: 'Mentor ID required' });
+    const mentorIdString = String(mentorId);
     
     // find user to get name
     let student = null;
@@ -159,11 +160,28 @@ app.post('/api/mentorship/requests', verifyToken, async (req, res) => {
     const studentName = student?.fullName || (student?.name || 'Student');
 
     if (mongoose.connection.readyState === 1) {
+      const existingRequest = await MentorshipRequest.findOne({
+        studentId,
+        mentorId: mentorIdString,
+        status: { $in: ['pending', 'accepted', 'declined'] }
+      }).lean();
+
+      if (existingRequest) {
+        return res.status(400).json({
+          success: false,
+          message: existingRequest.status === 'accepted'
+            ? 'You are already under this mentor.'
+            : existingRequest.status === 'declined'
+              ? 'This mentor has declined your request.'
+              : 'You have already sent a request to this mentor.'
+        });
+      }
+
       // Store mentorId as string to match the mentor data structure
       const r = await MentorshipRequest.create({ 
         studentId, 
         studentName, 
-        mentorId: String(mentorId), 
+        mentorId: mentorIdString, 
         mentorName: mentorName || 'Mentor',
         topic, 
         note 
@@ -172,11 +190,29 @@ app.post('/api/mentorship/requests', verifyToken, async (req, res) => {
     }
 
     // in-memory fallback
+    const allRequests = app.locals.mentorshipRequests || [];
+    const existingRequest = allRequests.find(r =>
+      String(r.studentId) === String(studentId) &&
+      String(r.mentorId) === mentorIdString &&
+      ['pending', 'accepted', 'declined'].includes(r.status)
+    );
+
+    if (existingRequest) {
+      return res.status(400).json({
+        success: false,
+        message: existingRequest.status === 'accepted'
+          ? 'You are already under this mentor.'
+          : existingRequest.status === 'declined'
+            ? 'This mentor has declined your request.'
+            : 'You have already sent a request to this mentor.'
+      });
+    }
+
     const fallback = { 
       id: `r_${Date.now()}`, 
       studentId, 
       studentName, 
-      mentorId: String(mentorId),
+      mentorId: mentorIdString,
       mentorName: mentorName || 'Mentor',
       topic, 
       note, 

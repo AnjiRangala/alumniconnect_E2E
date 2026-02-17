@@ -1,30 +1,19 @@
 import React, { useEffect, useState } from 'react'
-import { Navbar } from '../components/Navbar'
-import { Footer } from '../components/Footer'
+import { Navbar } from '../components/Navbar.jsx'
+import { Footer } from '../components/Footer.jsx'
 
-interface Mentee {
-  _id?: string
-  id?: string
-  fullName?: string
-  skills?: string[]
-}
-
-interface AlumniEndorseProps {
-  onNavigate: (page: string) => void
-}
-
-export const AlumniEndorse = ({ onNavigate }: AlumniEndorseProps) => {
-  const [mentees, setMentees] = useState<Mentee[] | null>(null)
+export const AlumniEndorse = ({ onNavigate }) => {
+  const [mentees, setMentees] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [apiMessage, setApiMessage] = useState<string | null>(null)
+  const [apiMessage, setApiMessage] = useState(null)
 
-  useEffect(()=>{ loadMentees() }, [])
+  useEffect(() => { loadMentees() }, [])
 
   const loadMentees = async () => {
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const headers:any = {}
+      const headers = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const res = await fetch('http://localhost:5000/api/mentees', { headers })
       const j = await res.json()
@@ -36,9 +25,9 @@ export const AlumniEndorse = ({ onNavigate }: AlumniEndorseProps) => {
     } finally { setLoading(false) }
   }
 
-  const flash = (m:string) => { setApiMessage(m); setTimeout(()=>setApiMessage(null), 3000) }
+  const flash = (m) => { setApiMessage(m); setTimeout(() => setApiMessage(null), 3000) }
 
-  const endorse = async (mentee:Mentee, skill:string) => {
+  const endorse = async (mentee, skill) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { flash('Please log in to endorse'); return }

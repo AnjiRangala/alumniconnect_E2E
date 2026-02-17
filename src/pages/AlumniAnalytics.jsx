@@ -1,12 +1,8 @@
 import React from 'react'
-import { Navbar } from '../components/Navbar'
-import { Footer } from '../components/Footer'
+import { Navbar } from '../components/Navbar.jsx'
+import { Footer } from '../components/Footer.jsx'
 
-interface AlumniAnalyticsProps {
-  onNavigate: (page: string) => void
-}
-
-export const AlumniAnalytics = ({ onNavigate }: AlumniAnalyticsProps) => {
+export const AlumniAnalytics = ({ onNavigate }) => {
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar onNavigate={onNavigate} />

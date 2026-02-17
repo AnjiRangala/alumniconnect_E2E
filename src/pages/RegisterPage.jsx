@@ -1,14 +1,10 @@
 import { useState } from 'react'
 import { Mail, Lock, User, Building, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
-interface RegisterPageProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export function RegisterPage({ onNavigate }: RegisterPageProps) {
-  const [userType, setUserType] = useState<'student' | 'alumni'>('student')
+export function RegisterPage({ onNavigate }) {
+  const [userType, setUserType] = useState('student')
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -23,12 +19,12 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleRegister = async (e: React.FormEvent) => {
+  const handleRegister = async (e) => {
     e.preventDefault()
     setError('')
     setSuccess(false)
@@ -198,7 +194,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
             </div>
           </div>
 
-          {/* Company (Alumni only) */}
           {userType === 'alumni' && (
             <div>
               <label className="block text-gray-700 font-semibold mb-2">Company/Organization *</label>
@@ -209,29 +204,26 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
                   name="company"
                   value={formData.company}
                   onChange={handleInputChange}
-                  placeholder="Tech Company Inc."
+                  placeholder="Company Name"
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
                 />
               </div>
             </div>
           )}
 
-          {/* Skills */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">
-              Skills (comma-separated, optional)
+              Skills (Optional)
             </label>
             <textarea
               name="skills"
               value={formData.skills}
               onChange={handleInputChange}
-              placeholder="React, JavaScript, UI Design..."
-              rows={2}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+              placeholder="e.g., JavaScript, UX Design"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
             ></textarea>
           </div>
 
-          {/* Password */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Password *</label>
             <div className="relative">
@@ -254,7 +246,6 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
             </div>
           </div>
 
-          {/* Confirm Password */}
           <div>
             <label className="block text-gray-700 font-semibold mb-2">Confirm Password *</label>
             <div className="relative">
@@ -277,25 +268,22 @@ export function RegisterPage({ onNavigate }: RegisterPageProps) {
             </div>
           </div>
 
-          {/* Terms */}
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" className="w-4 h-4 rounded" required />
             <span className="text-gray-600 text-sm">
-              I agree to the Terms of Service and Privacy Policy
+              I agree to the Terms and Privacy Policy
             </span>
           </label>
 
-          {/* Register Button */}
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold hover:bg-blue-700 transition mt-6 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            {loading ? 'Creating account...' : 'Create Account'}
           </button>
         </form>
 
-        {/* Login Link */}
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
             <div className="w-full border-t border-gray-300"></div>

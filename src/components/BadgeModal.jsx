@@ -1,11 +1,6 @@
 import React from 'react'
 
-interface BadgeModalProps {
-  badge: any
-  onClose: () => void
-}
-
-export const BadgeModal = ({ badge, onClose }: BadgeModalProps) => {
+export const BadgeModal = ({ badge, onClose }) => {
   if (!badge) return null
 
   return (
@@ -37,7 +32,7 @@ export const BadgeModal = ({ badge, onClose }: BadgeModalProps) => {
           <div className="mt-4">
             <h3 className="font-semibold">Tasks / Requirements</h3>
             <ul className="list-disc list-inside text-sm text-gray-600 mt-2">
-              {badge.tasks.map((t: string, i: number) => (
+              {badge.tasks.map((t, i) => (
                 <li key={i}>{t}</li>
               ))}
             </ul>

@@ -1,4 +1,4 @@
-export const JobCard = ({ title, company, location, type, salary, skills, applyUrl }: any) => {
+export const JobCard = ({ title, company, location, type, salary, skills, applyUrl }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
       <div className="mb-4">
@@ -13,7 +13,7 @@ export const JobCard = ({ title, company, location, type, salary, skills, applyU
       <div className="mb-4">
         <p className="text-sm text-gray-500 mb-2">Required Skills:</p>
         <div className="flex flex-wrap gap-2">
-          {skills.map((skill: string) => (
+          {skills.map((skill) => (
             <span key={skill} className="bg-blue-50 text-blue-600 text-xs px-3 py-1 rounded-full">
               {skill}
             </span>

@@ -1,21 +1,16 @@
 import React, { useState } from 'react'
-import { Navbar } from '../components/Navbar'
-import { Footer } from '../components/Footer'
+import { Navbar } from '../components/Navbar.jsx'
+import { Footer } from '../components/Footer.jsx'
 
-interface AlumniPostJobProps {
-  onNavigate: (page: string) => void
-}
-
-export const AlumniPostJob = ({ onNavigate }: AlumniPostJobProps) => {
+export const AlumniCreateEvent = ({ onNavigate }) => {
   const [title, setTitle] = useState('')
-  const [company, setCompany] = useState('')
+  const [date, setDate] = useState('')
   const [description, setDescription] = useState('')
 
-  const handlePost = async () => {
-    // minimal local behavior; backend integration can be added later
-    alert(`Job posted:\nTitle: ${title}\nCompany: ${company}`)
+  const handleCreate = async () => {
+    alert(`Event created:\n${title} on ${date}`)
     setTitle('')
-    setCompany('')
+    setDate('')
     setDescription('')
   }
 
@@ -26,18 +21,18 @@ export const AlumniPostJob = ({ onNavigate }: AlumniPostJobProps) => {
         <div className="bg-white p-6 rounded-lg shadow-md">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold">Post a Job</h1>
+              <h1 className="text-2xl font-bold">Create Event</h1>
             </div>
             <div>
               <button onClick={() => onNavigate('alumni-dashboard')} className="px-3 py-2 bg-gray-100 rounded hover:bg-gray-200">← Back to Dashboard</button>
             </div>
           </div>
           <div className="space-y-4">
-            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Job Title" className="w-full p-2 border rounded" />
-            <input value={company} onChange={(e) => setCompany(e.target.value)} placeholder="Company" className="w-full p-2 border rounded" />
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Event Title" className="w-full p-2 border rounded" />
+            <input value={date} onChange={(e) => setDate(e.target.value)} placeholder="Date (YYYY-MM-DD)" className="w-full p-2 border rounded" />
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" className="w-full p-2 border rounded h-32" />
             <div className="flex gap-2">
-              <button onClick={handlePost} className="bg-green-600 text-white px-4 py-2 rounded">Post Job</button>
+              <button onClick={handleCreate} className="bg-purple-600 text-white px-4 py-2 rounded">Create Event</button>
               <button onClick={() => onNavigate('alumni-dashboard')} className="bg-gray-200 px-4 py-2 rounded">Back</button>
             </div>
           </div>

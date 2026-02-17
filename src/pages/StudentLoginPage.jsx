@@ -1,20 +1,16 @@
 import { useState } from 'react'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
-interface StudentLoginPageProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export function StudentLoginPage({ onNavigate }: StudentLoginPageProps) {
+export function StudentLoginPage({ onNavigate }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e) => {
     e.preventDefault()
     setError('')
     setLoading(true)

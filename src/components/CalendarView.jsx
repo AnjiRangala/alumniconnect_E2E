@@ -1,21 +1,7 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState, useMemo } from 'react';
 
-interface Event {
-  id: number;
-  title: string;
-  date: string;
-  time: string;
-  category: string;
-  speaker: string;
-}
-
-interface CalendarViewProps {
-  events: Event[];
-  onSelectEvent: (event: Event) => void;
-}
-
-export const CalendarView = ({ events, onSelectEvent }: CalendarViewProps) => {
+export const CalendarView = ({ events, onSelectEvent }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthYear = currentDate.toLocaleDateString('en-US', {
@@ -44,7 +30,7 @@ export const CalendarView = ({ events, onSelectEvent }: CalendarViewProps) => {
   };
 
   const eventsByDate = useMemo(() => {
-    const map: { [key: string]: Event[] } = {};
+    const map = {};
     events.forEach(event => {
       const eventDate = new Date(event.date);
       const dateKey = `${eventDate.getFullYear()}-${eventDate.getMonth()}-${eventDate.getDate()}`;
@@ -56,8 +42,8 @@ export const CalendarView = ({ events, onSelectEvent }: CalendarViewProps) => {
     return map;
   }, [events]);
 
-  const getCategoryColor = (category: string) => {
-    const colors: { [key: string]: string } = {
+  const getCategoryColor = (category) => {
+    const colors = {
       Career: 'bg-blue-100 text-blue-700',
       Technical: 'bg-purple-100 text-purple-700',
       Networking: 'bg-green-100 text-green-700',

@@ -2,29 +2,25 @@ import { useState } from 'react'
 import React from 'react'
 import { BarChart3, Users, Calendar, Briefcase, Settings, LogOut } from 'lucide-react';
 
-interface StudentDashboardProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
-  const [user, setUser] = useState<any>(null)
-  const [dashboardStats, setDashboardStats] = useState<any>(null)
+export const StudentDashboard = ({ onNavigate }) => {
+  const [user, setUser] = useState(null)
+  const [dashboardStats, setDashboardStats] = useState(null)
   const [notifOpen, setNotifOpen] = useState(false)
-  const [notifications, setNotifications] = useState<any[]>([])
+  const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
-  const [refreshMessage, setRefreshMessage] = useState<string | null>(null)
-  const [myRequests, setMyRequests] = useState<any[]>([])
+  const [refreshMessage, setRefreshMessage] = useState(null)
+  const [myRequests, setMyRequests] = useState([])
   const [loadingRequests, setLoadingRequests] = useState(false)
-  const [editingRequest, setEditingRequest] = useState<any>(null)
+  const [editingRequest, setEditingRequest] = useState(null)
   const [editForm, setEditForm] = useState({ topic: '', note: '' })
-  const [requestMessage, setRequestMessage] = useState<string | null>(null)
-  const [deleteConfirm, setDeleteConfirm] = useState<any>(null)
-  const [messages, setMessages] = useState<any[]>([])
+  const [requestMessage, setRequestMessage] = useState(null)
+  const [deleteConfirm, setDeleteConfirm] = useState(null)
+  const [messages, setMessages] = useState([])
   const [showMessagesModal, setShowMessagesModal] = useState(false)
-  const [selectedMessage, setSelectedMessage] = useState<any>(null)
+  const [selectedMessage, setSelectedMessage] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [replySending, setReplySending] = useState(false)
 
@@ -33,7 +29,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
     if (userData) {
       setUser(JSON.parse(userData))
     }
-    
+
     // Fetch dashboard stats from backend
     fetchDashboardData()
     fetchMyRequests()
@@ -42,7 +38,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem('token')
-      const headers: any = {}
+      const headers = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const response = await fetch(`${API_BASE_URL}/student/dashboard`, { headers })
       const result = await response.json()
@@ -59,7 +55,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) return
-      const headers: any = { 'Authorization': `Bearer ${token}` }
+      const headers = { 'Authorization': `Bearer ${token}` }
       const response = await fetch(`${API_BASE_URL}/mentorship/my-requests`, { headers })
       const result = await response.json()
       if (result.success) {
@@ -72,7 +68,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
     }
   }
 
-  const deleteRequest = async (requestId: string) => {
+  const deleteRequest = async (requestId) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) {
@@ -80,12 +76,12 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
         setTimeout(() => setRequestMessage(null), 3000)
         return
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/mentorship/my-requests/${requestId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       })
-      
+
       if (!response.ok) {
         const result = await response.json().catch(() => ({ message: 'Server error' }))
         setRequestMessage(result.message || 'Failed to delete request')
@@ -93,7 +89,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
         setDeleteConfirm(null)
         return
       }
-      
+
       const result = await response.json()
       if (result.success) {
         setMyRequests(prev => prev.filter(r => (r._id || r.id) !== requestId))
@@ -113,7 +109,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
     }
   }
 
-  const startEditing = (request: any) => {
+  const startEditing = (request) => {
     setEditingRequest(request)
     setEditForm({ topic: request.topic, note: request.note })
   }
@@ -197,7 +193,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) return
-      
+
       const requestId = editingRequest._id || editingRequest.id
       const response = await fetch(`${API_BASE_URL}/mentorship/my-requests/${requestId}`, {
         method: 'PUT',
@@ -207,10 +203,10 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
         },
         body: JSON.stringify(editForm)
       })
-      
+
       const result = await response.json()
       if (result.success) {
-        setMyRequests(prev => prev.map(r => 
+        setMyRequests(prev => prev.map(r =>
           (r._id || r.id) === requestId ? { ...r, ...editForm } : r
         ))
         setRequestMessage('Request updated successfully')
@@ -235,7 +231,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
       const j = await res.json()
       if (j.success) {
         setNotifications(j.data || [])
-        setUnreadCount((j.data || []).filter((n:any)=>!n.read).length)
+        setUnreadCount((j.data || []).filter((n)=>!n.read).length)
       }
     } catch (err) { console.error('Error fetching notifications', err) }
   }
@@ -246,8 +242,8 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
   }
 
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settings, setSettings] = useState<any>(null)
-  const [settingsMessage, setSettingsMessage] = useState<string | null>(null)
+  const [settings, setSettings] = useState(null)
+  const [settingsMessage, setSettingsMessage] = useState(null)
 
   const fetchSettings = async () => {
     try {
@@ -365,7 +361,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
             <Settings size={20} />
             <span>Settings</span>
           </button>
-          <button 
+          <button
             onClick={handleLogout}
             className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-red-600 hover:bg-red-50"
           >
@@ -691,7 +687,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-800">My Mentorship Requests</h2>
-              <button 
+              <button
                 onClick={() => onNavigate('mentor-discovery')}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
               >
@@ -704,7 +700,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
             ) : myRequests.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-600 mb-4">You haven't sent any mentorship requests yet.</p>
-                <button 
+                <button
                   onClick={() => onNavigate('mentor-discovery')}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
@@ -783,7 +779,7 @@ export const StudentDashboard = ({ onNavigate }: StudentDashboardProps) => {
           <h2 className="text-xl font-bold text-gray-800 mb-4">What's Next?</h2>
           <div className="grid grid-cols-2 gap-6">
             {dashboardItems.slice(0, 2).map(item => (
-              <div 
+              <div
                 key={item.id}
                 onClick={() => {
                   if (item.id === 'find-mentor') {

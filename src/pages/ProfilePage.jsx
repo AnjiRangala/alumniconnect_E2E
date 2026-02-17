@@ -1,31 +1,27 @@
-import { Footer } from '../components/Footer';
-import { BadgeModal } from '../components/BadgeModal'
+import { Footer } from '../components/Footer.jsx';
+import { BadgeModal } from '../components/BadgeModal.jsx'
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-interface ProfilePageProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
-  const [user, setUser] = useState<any>(null);
+export const ProfilePage = ({ onNavigate }) => {
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [editing, setEditing] = useState(false);
   const [fullName, setFullName] = useState('');
   const [company, setCompany] = useState('');
   const [skillsInput, setSkillsInput] = useState('');
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
-  const [visitors, setVisitors] = useState<Array<any>>([]);
-  const [stats, setStats] = useState<any>(null);
+  const [visitors, setVisitors] = useState([]);
+  const [stats, setStats] = useState(null);
   const [messageOpen, setMessageOpen] = useState(false);
   const [msgSubject, setMsgSubject] = useState('');
   const [msgBody, setMsgBody] = useState('');
-  const [selectedBadge, setSelectedBadge] = useState<any | null>(null)
+  const [selectedBadge, setSelectedBadge] = useState(null)
 
   useEffect(() => {
     fetchProfileData();
@@ -93,7 +89,7 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
     }
   };
 
-  const endorseSkill = async (skill: string) => {
+  const endorseSkill = async (skill) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) { setError('Please login to endorse'); return; }
@@ -265,7 +261,7 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
           </div>
         </div>
       </div>
-      
+
       <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-8">
         {loading ? (
           <div className="text-center py-12">
@@ -276,7 +272,7 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
             <p className="text-red-600 font-semibold">Error loading profile</p>
             <p className="text-red-500 mt-2">{error}</p>
-            <button 
+            <button
               onClick={fetchProfileData}
               className="mt-4 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
             >
@@ -399,7 +395,7 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
             <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mb-8">
               <h2 className="text-xl md:text-2xl font-bold mb-4">About</h2>
               <p className="text-gray-700 text-sm md:text-base leading-relaxed">
-                Passionate full-stack developer with expertise in React, Node.js, and cloud technologies. 
+                Passionate full-stack developer with expertise in React, Node.js, and cloud technologies.
                 Seeking mentorship to transition into product management. Always eager to learn and collaborate with experienced professionals.
               </p>
             </div>
@@ -409,12 +405,12 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
               <h2 className="text-xl md:text-2xl font-bold mb-4">🎯 Skills</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                 {user.skills && user.skills.length > 0 ? (
-                  user.skills.map((skill: string, index: number) => (
+                  user.skills.map((skill, index) => (
                     <div key={index} className="flex justify-between items-center p-3 border border-gray-200 rounded-lg text-sm md:text-base">
                       <span className="font-semibold">{skill}</span>
                       <div className="flex items-center gap-2">
                         <span className="bg-blue-100 text-blue-600 px-2 md:px-3 py-1 rounded-full text-xs md:text-sm whitespace-nowrap">
-                          {(user.endorsements || []).find((e:any)=>e.skill.toLowerCase()===skill.toLowerCase())?.count || 0} endorsements
+                          {(user.endorsements || []).find((e)=>e.skill.toLowerCase()===skill.toLowerCase())?.count || 0} endorsements
                         </span>
                         <button onClick={()=>endorseSkill(skill)} className="text-xs text-blue-600 hover:underline">Endorse</button>
                       </div>
@@ -427,21 +423,21 @@ export const ProfilePage = ({ onNavigate }: ProfilePageProps) => {
             </div>
 
             {/* Badges Section */}
-                      <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mb-8">
-                        <h2 className="text-xl md:text-2xl font-bold mb-4">🏅 Badges & Achievements</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
-                          {(user?.badges && user.badges.length > 0) ? (
-                            user.badges.map((b: any, index: number) => (
-                              <button key={b.key + index} onClick={() => setSelectedBadge(b)} className="text-center p-3 md:p-4 bg-gradient-to-br from-yellow-100 to-yellow-50 rounded-lg">
-                                <div className="text-2xl md:text-3xl mb-2">🏅</div>
-                                <p className="text-xs font-semibold leading-tight">{b.name}</p>
-                              </button>
-                            ))
-                          ) : (
-                            <div className="col-span-full text-sm text-gray-500">No badges yet. Participate in activities to earn badges.</div>
-                          )}
-                        </div>
-                      </div>
+            <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mb-8">
+              <h2 className="text-xl md:text-2xl font-bold mb-4">🏅 Badges & Achievements</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 md:gap-4">
+                {(user?.badges && user.badges.length > 0) ? (
+                  user.badges.map((b, index) => (
+                    <button key={b.key + index} onClick={() => setSelectedBadge(b)} className="text-center p-3 md:p-4 bg-gradient-to-br from-yellow-100 to-yellow-50 rounded-lg">
+                      <div className="text-2xl md:text-3xl mb-2">🏅</div>
+                      <p className="text-xs font-semibold leading-tight">{b.name}</p>
+                    </button>
+                  ))
+                ) : (
+                  <div className="col-span-full text-sm text-gray-500">No badges yet. Participate in activities to earn badges.</div>
+                )}
+              </div>
+            </div>
 
             {/* Activity Timeline */}
             <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mb-8">

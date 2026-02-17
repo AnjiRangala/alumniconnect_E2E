@@ -1,26 +1,22 @@
 import React, { useEffect, useState } from 'react'
-import { Navbar } from '../components/Navbar'
-import { Footer } from '../components/Footer'
-import { InputModal } from '../components/InputModal'
-
-interface AlumniMenteesDashboardProps {
-  onNavigate: (page: string) => void
-}
+import { Navbar } from '../components/Navbar.jsx'
+import { Footer } from '../components/Footer.jsx'
+import { InputModal } from '../components/InputModal.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api'
 
-export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardProps) => {
-  const [mentees, setMentees] = useState<any[] | null>(null)
+export const AlumniMenteesDashboard = ({ onNavigate }) => {
+  const [mentees, setMentees] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState<any | null>(null)
-  const [analytics, setAnalytics] = useState<any | null>(null)
+  const [selected, setSelected] = useState(null)
+  const [analytics, setAnalytics] = useState(null)
   const [msgOpen, setMsgOpen] = useState(false)
   const [msgBody, setMsgBody] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [showNoteModalFor, setShowNoteModalFor] = useState<any | null>(null)
-  const [showTaskModalFor, setShowTaskModalFor] = useState<any | null>(null)
+  const [showNoteModalFor, setShowNoteModalFor] = useState(null)
+  const [showTaskModalFor, setShowTaskModalFor] = useState(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const [selectedStudentProfile, setSelectedStudentProfile] = useState<any>(null)
+  const [selectedStudentProfile, setSelectedStudentProfile] = useState(null)
   const [loadingStudentProfile, setLoadingStudentProfile] = useState(false)
 
   useEffect(() => { loadMentees() }, [])
@@ -29,7 +25,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     setLoading(true)
     try {
       const token = localStorage.getItem('token')
-      const headers: any = {}
+      const headers = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const res = await fetch(`${API_BASE_URL}/mentees`, { headers })
       const j = await res.json()
@@ -41,12 +37,12 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     } finally { setLoading(false) }
   }
 
-  const viewProfile = async (studentId: string) => {
+  const viewProfile = async (studentId) => {
     setShowProfileModal(true)
     setLoadingStudentProfile(true)
     try {
       const token = localStorage.getItem('token')
-      const headers: any = {}
+      const headers = {}
       if (token) headers['Authorization'] = `Bearer ${token}`
       const res = await fetch(`${API_BASE_URL}/users/${studentId}`, { headers })
       const j = await res.json()
@@ -65,7 +61,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     }
   }
 
-  const openMessage = (student:any) => {
+  const openMessage = (student) => {
     setSelected(student)
     setMsgOpen(true)
     setMsgBody('')
@@ -80,32 +76,32 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/messages`, { 
-        method: 'POST', 
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Content-Type':'application/json' 
-        }, 
-        body: JSON.stringify({ 
+      const res = await fetch(`${API_BASE_URL}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type':'application/json'
+        },
+        body: JSON.stringify({
           targetUserId: selected._id || selected.id,
           subject: 'Message from your mentor',
-          body: msgBody 
-        }) 
+          body: msgBody
+        })
       })
       const j = await res.json()
-      if (j.success) { 
-        alert('Message sent successfully!') 
+      if (j.success) {
+        alert('Message sent successfully!')
         setMsgOpen(false)
         setMsgBody('')
       }
       else alert(j.message || 'Failed to send message')
-    } catch (err) { 
-      console.error(err); 
-      alert('Network error') 
+    } catch (err) {
+      console.error(err)
+      alert('Network error')
     }
   }
 
-  const scheduleSession = async (student:any) => {
+  const scheduleSession = async (student) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -116,7 +112,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     } catch (err) { console.error(err); alert('Network error') }
   }
 
-  const addNote = async (student:any, note:string) => {
+  const addNote = async (student, note) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -126,7 +122,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     } catch (err) { console.error(err); alert('Network error') }
   }
 
-  const assignTask = async (student:any, title:string) => {
+  const assignTask = async (student, title) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -136,7 +132,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     } catch (err) { console.error(err); alert('Network error') }
   }
 
-  const markComplete = async (student:any) => {
+  const markComplete = async (student) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -146,7 +142,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     } catch (err) { console.error(err); alert('Network error') }
   }
 
-  const exportCSV = async (student:any) => {
+  const exportCSV = async (student) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -169,8 +165,8 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     if (!mentees || mentees.length === 0) { alert('No mentees to export'); return }
     const keys = ['id','fullName','focus','sessions','sessionsGoal']
     const rows = [keys.join(',')]
-    mentees.forEach((m:any)=>{
-      const vals = keys.map(k => `"${((m as any)[k]||'').toString().replace(/"/g,'""')}"`)
+    mentees.forEach((m)=>{
+      const vals = keys.map(k => `"${((m[k] || '')).toString().replace(/"/g,'""')}"`)
       rows.push(vals.join(','))
     })
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' })
@@ -184,7 +180,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
     URL.revokeObjectURL(url)
   }
 
-  const loadAnalytics = async (student:any) => {
+  const loadAnalytics = async (student) => {
     try {
       const token = localStorage.getItem('token')
       if (!token) { alert('Please login'); return }
@@ -227,8 +223,8 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                 <p className="text-gray-600 mb-4">
                   {searchTerm ? 'Try adjusting your search' : 'Accept mentorship requests to start mentoring students!'}
                 </p>
-                <button 
-                  onClick={() => onNavigate('alumni-requests')} 
+                <button
+                  onClick={() => onNavigate('alumni-requests')}
                   className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
                   View Mentorship Requests
@@ -240,7 +236,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                   if (!searchTerm) return true
                   const q = searchTerm.toLowerCase()
                   return (m.fullName||m.name||'').toLowerCase().includes(q) || (m.focus||'').toLowerCase().includes(q)
-                }).map((m:any) => (
+                }).map((m) => (
                   <div key={m._id || m.id || m.idStr} className="bg-white p-5 rounded-lg shadow-md hover:shadow-lg transition">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
@@ -248,16 +244,16 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                         <p className="text-sm text-gray-500">📚 {m.focus || 'Career Development'}</p>
                       </div>
                     </div>
-                    
+
                     <div className="mb-4">
                       <div className="flex justify-between text-sm mb-1">
                         <span className="text-gray-600">Progress</span>
                         <span className="font-semibold text-gray-800">{(m.sessions || 0)}/{m.sessionsGoal || 10} sessions</span>
                       </div>
                       <div className="bg-gray-200 h-3 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500" 
-                          style={{ width: `${Math.round((m.progress||((m.sessions||0)/(m.sessionsGoal||10)))*100)}%` }} 
+                        <div
+                          className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.round((m.progress||((m.sessions||0)/(m.sessionsGoal||10)))*100)}%` }}
                         />
                       </div>
                       <p className="text-xs text-gray-500 mt-1">
@@ -266,14 +262,14 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 mb-3">
-                      <button 
-                        onClick={() => openMessage(m)} 
+                      <button
+                        onClick={() => openMessage(m)}
                         className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-1"
                       >
                         💬 Message
                       </button>
-                      <button 
-                        onClick={() => viewProfile(m._id || m.id || m.idStr)} 
+                      <button
+                        onClick={() => viewProfile(m._id || m.id || m.idStr)}
                         className="px-3 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600"
                       >
                         👤 Profile
@@ -281,14 +277,14 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <button 
-                        onClick={() => scheduleSession(m)} 
+                      <button
+                        onClick={() => scheduleSession(m)}
                         className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
                       >
                         📅 Schedule
                       </button>
-                      <button 
-                        onClick={() => setShowNoteModalFor(m)} 
+                      <button
+                        onClick={() => setShowNoteModalFor(m)}
                         className="px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600"
                       >
                         📝 Note
@@ -296,8 +292,8 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                     </div>
 
                     <div className="mt-3 pt-3 border-t border-gray-200">
-                      <button 
-                        onClick={() => setShowTaskModalFor(m)} 
+                      <button
+                        onClick={() => setShowTaskModalFor(m)}
                         className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
                       >
                         ✅ Assign Task
@@ -322,16 +318,16 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                   Send a direct message to your mentee
                 </p>
               </div>
-              
+
               <div className="p-6">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Your Message
                 </label>
-                <textarea 
-                  value={msgBody} 
-                  onChange={e=>setMsgBody(e.target.value)} 
+                <textarea
+                  value={msgBody}
+                  onChange={e=>setMsgBody(e.target.value)}
                   placeholder="Type your message here..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" 
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
                   rows={6}
                 />
                 <p className="text-xs text-gray-500 mt-2">
@@ -340,14 +336,14 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
               </div>
 
               <div className="flex justify-end gap-3 px-6 pb-6">
-                <button 
-                  onClick={()=>{setMsgOpen(false); setMsgBody('')}} 
+                <button
+                  onClick={()=>{setMsgOpen(false); setMsgBody('')}}
                   className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
                 >
                   Cancel
                 </button>
-                <button 
-                  onClick={sendMessage} 
+                <button
+                  onClick={sendMessage}
                   disabled={!msgBody.trim()}
                   className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
                 >
@@ -393,8 +389,8 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                     <h2 className="text-2xl font-bold text-white">👤 Student Profile</h2>
                     <p className="text-blue-100 text-sm mt-1">Read-only view</p>
                   </div>
-                  <button 
-                    onClick={() => {setShowProfileModal(false); setSelectedStudentProfile(null)}} 
+                  <button
+                    onClick={() => {setShowProfileModal(false); setSelectedStudentProfile(null)}}
                     className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30"
                   >
                     Close
@@ -469,7 +465,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                     <div className="bg-gray-50 rounded-lg p-6">
                       <h3 className="text-xl font-bold text-gray-800 mb-4">Skills</h3>
                       <div className="flex flex-wrap gap-2">
-                        {selectedStudentProfile.skills.map((skill: string, index: number) => (
+                        {selectedStudentProfile.skills.map((skill, index) => (
                           <span key={index} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
                             {skill}
                           </span>
@@ -486,9 +482,9 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                         {selectedStudentProfile.linkedinUrl && (
                           <div>
                             <label className="text-sm font-medium text-gray-600">LinkedIn</label>
-                            <a 
-                              href={selectedStudentProfile.linkedinUrl} 
-                              target="_blank" 
+                            <a
+                              href={selectedStudentProfile.linkedinUrl}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="block text-blue-600 hover:underline"
                             >
@@ -499,9 +495,9 @@ export const AlumniMenteesDashboard = ({ onNavigate }: AlumniMenteesDashboardPro
                         {selectedStudentProfile.githubUrl && (
                           <div>
                             <label className="text-sm font-medium text-gray-600">GitHub</label>
-                            <a 
-                              href={selectedStudentProfile.githubUrl} 
-                              target="_blank" 
+                            <a
+                              href={selectedStudentProfile.githubUrl}
+                              target="_blank"
                               rel="noopener noreferrer"
                               className="block text-blue-600 hover:underline"
                             >

@@ -1,43 +1,20 @@
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
-import { JobCard } from '../components/JobCard';
+import { Navbar } from '../components/Navbar.jsx';
+import { Footer } from '../components/Footer.jsx';
+import { JobCard } from '../components/JobCard.jsx';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-interface JobsPageProps {
-  onNavigate: (page: string) => void
-}
-
-interface Job {
-  id: number;
-  title: string;
-  company: string;
-  location: string;
-  type: string;
-  salary: string;
-  skills: string[];
-  applyUrl: string;
-}
-
-interface Application {
-  jobId: number;
-  jobTitle: string;
-  company: string;
-  appliedAt: string;
-  status: string;
-}
-
-export const JobsPage = ({ onNavigate }: JobsPageProps) => {
-  const [jobs, setJobs] = useState<Job[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
+export const JobsPage = ({ onNavigate }) => {
+  const [jobs, setJobs] = useState([]);
+  const [filteredJobs, setFilteredJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [selectedLocation, setSelectedLocation] = useState('All Locations');
   const [selectedType, setSelectedType] = useState('All Types');
-  const [selectedSkill, setSelectedSkill] = useState<string | null>(null);
-  const [applications, setApplications] = useState<Application[]>([]);
-  const [applyMessage, setApplyMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [selectedSkill, setSelectedSkill] = useState(null);
+  const [applications, setApplications] = useState([]);
+  const [applyMessage, setApplyMessage] = useState(null);
 
   const allLocations = ['Bangalore, Karnataka', 'Hyderabad, Telangana', 'Pune, Maharashtra', 'Mumbai, Maharashtra', 'Chennai, Tamil Nadu', 'Kochi, Kerala', 'Delhi, Delhi NCR'];
   const allTypes = ['Full-time', 'Part-time', 'Internship'];
@@ -73,14 +50,14 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
 
     // Filter by skill
     if (selectedSkill) {
-      filtered = filtered.filter(j => 
+      filtered = filtered.filter(j =>
         j.skills.some(s => s.toLowerCase().includes(selectedSkill.toLowerCase()))
       );
     }
 
     // Filter by location
     if (selectedLocation !== 'All Locations') {
-      filtered = filtered.filter(j => 
+      filtered = filtered.filter(j =>
         j.location.toLowerCase().includes(selectedLocation.toLowerCase())
       );
     }
@@ -93,7 +70,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
     // Search by keyword
     if (searchKeyword) {
       const keyword = searchKeyword.toLowerCase();
-      filtered = filtered.filter(j => 
+      filtered = filtered.filter(j =>
         j.title.toLowerCase().includes(keyword) ||
         j.company.toLowerCase().includes(keyword) ||
         j.location.toLowerCase().includes(keyword) ||
@@ -105,7 +82,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
   }, [searchKeyword, selectedLocation, selectedType, selectedSkill, jobs]);
 
   // Handle job application
-  const handleApplyJob = async (jobId: number) => {
+  const handleApplyJob = async (jobId) => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
@@ -123,7 +100,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
       });
 
       const data = await response.json();
-      
+
       if (data.success) {
         setApplications([...applications, data.data]);
         setApplyMessage({ message: data.message, type: 'success' });
@@ -155,7 +132,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
           </div>
         </div>
       </div>
-      
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
 
         {/* Application Success Message */}
@@ -175,7 +152,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
               onChange={(e) => setSearchKeyword(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
             />
-            <select 
+            <select
               value={selectedLocation}
               onChange={(e) => setSelectedLocation(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
@@ -185,7 +162,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
                 <option key={loc} value={loc}>{loc}</option>
               ))}
             </select>
-            <select 
+            <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
@@ -195,7 +172,7 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
-            <button 
+            <button
               onClick={() => {
                 setSearchKeyword('');
                 setSelectedLocation('All Locations');
@@ -217,8 +194,8 @@ export const JobsPage = ({ onNavigate }: JobsPageProps) => {
                   key={skill}
                   onClick={() => setSelectedSkill(selectedSkill === skill ? null : skill)}
                   className={`px-3 py-1 rounded-full text-sm transition ${
-                    selectedSkill === skill 
-                      ? 'bg-blue-600 text-white' 
+                    selectedSkill === skill
+                      ? 'bg-blue-600 text-white'
                       : 'bg-blue-100 text-blue-600 hover:bg-blue-200'
                   }`}
                 >

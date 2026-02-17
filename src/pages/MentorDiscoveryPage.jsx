@@ -1,27 +1,23 @@
-import { Footer } from '../components/Footer';
-import { MentorCard } from '../components/MentorCard';
+import { Footer } from '../components/Footer.jsx';
+import { MentorCard } from '../components/MentorCard.jsx';
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
-interface MentorDiscoveryPageProps {
-  onNavigate: (page: string) => void
-}
-
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) => {
-  const [mentors, setMentors] = useState<any[]>([]);
-  const [filteredMentors, setFilteredMentors] = useState<any[]>([]);
+export const MentorDiscoveryPage = ({ onNavigate }) => {
+  const [mentors, setMentors] = useState([]);
+  const [filteredMentors, setFilteredMentors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedIndustry, setSelectedIndustry] = useState('All Industries');
   const [selectedExperience, setSelectedExperience] = useState('All Experience Levels');
-  const [selectedAvailability, setSelectedAvailability] = useState<string[]>([]);
+  const [selectedAvailability, setSelectedAvailability] = useState([]);
   const [showRequestModal, setShowRequestModal] = useState(false);
-  const [selectedMentor, setSelectedMentor] = useState<any>(null);
+  const [selectedMentor, setSelectedMentor] = useState(null);
   const [requestForm, setRequestForm] = useState({ topic: '', note: '' });
-  const [requestMessage, setRequestMessage] = useState<string | null>(null);
+  const [requestMessage, setRequestMessage] = useState(null);
 
   useEffect(() => {
     fetchMentors();
@@ -60,7 +56,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
         (mentor.name || mentor.fullName || '').toLowerCase().includes(term) ||
         (mentor.role || '').toLowerCase().includes(term) ||
         (mentor.company || '').toLowerCase().includes(term) ||
-        (mentor.skills || []).some((skill: string) => skill.toLowerCase().includes(term))
+        (mentor.skills || []).some((skill) => skill.toLowerCase().includes(term))
       );
     }
 
@@ -84,7 +80,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
     setFilteredMentors(filtered);
   };
 
-  const handleAvailabilityChange = (availability: string) => {
+  const handleAvailabilityChange = (availability) => {
     setSelectedAvailability(prev => {
       if (prev.includes(availability)) {
         return prev.filter(a => a !== availability);
@@ -94,8 +90,8 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
     });
   };
 
-  const handleRequestMentor = (mentorId: number) => {
-    const mentor = mentors.find(m => m.id === mentorId);
+  const handleRequestMentor = (mentorId) => {
+    const mentor = mentors.find(m => m.id === mentorId || m._id === mentorId);
     if (mentor) {
       setSelectedMentor(mentor);
       setShowRequestModal(true);
@@ -122,8 +118,8 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          mentorId: selectedMentor?.id,
-          mentorName: selectedMentor?.name,
+          mentorId: selectedMentor?.id || selectedMentor?._id,
+          mentorName: selectedMentor?.name || selectedMentor?.fullName,
           topic: requestForm.topic,
           note: requestForm.note
         })
@@ -164,7 +160,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
           </div>
         </div>
       </div>
-      
+
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
 
         {/* Loading State */}
@@ -178,7 +174,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-8">
             <p className="text-red-700">{error}</p>
-            <button 
+            <button
               onClick={fetchMentors}
               className="mt-3 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
             >
@@ -199,7 +195,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="md:col-span-2 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
               />
-              <select 
+              <select
                 value={selectedIndustry}
                 onChange={(e) => setSelectedIndustry(e.target.value)}
                 className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
@@ -216,7 +212,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
                 <option>Product Management</option>
                 <option>UI/UX Design</option>
               </select>
-              <select 
+              <select
                 value={selectedExperience}
                 onChange={(e) => setSelectedExperience(e.target.value)}
                 className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-600"
@@ -235,8 +231,8 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
               <div className="flex gap-4 flex-wrap">
                 {["Weekdays", "Weekends", "Evenings", "Flexible"].map((option) => (
                   <label key={option} className="flex items-center gap-2 cursor-pointer">
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       className="w-4 h-4 cursor-pointer"
                       checked={selectedAvailability.includes(option)}
                       onChange={() => handleAvailabilityChange(option)}
@@ -252,7 +248,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
               {filteredMentors.length > 0 ? (
                 filteredMentors.map((mentor) => (
                   <div key={mentor.id || mentor._id}>
-                    <MentorCard 
+                    <MentorCard
                       name={mentor.name || mentor.fullName}
                       role={mentor.role}
                       company={mentor.company}
@@ -289,7 +285,7 @@ export const MentorDiscoveryPage = ({ onNavigate }: MentorDiscoveryPageProps) =>
           <div className="bg-white rounded-lg max-w-md w-full p-6">
             <h2 className="text-2xl font-bold mb-4">Request Mentorship</h2>
             <p className="text-gray-600 mb-4">
-              Send a mentorship request to <span className="font-semibold">{selectedMentor?.name}</span>
+              Send a mentorship request to <span className="font-semibold">{selectedMentor?.name || selectedMentor?.fullName}</span>
             </p>
 
             <div className="space-y-4">

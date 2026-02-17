@@ -1,4 +1,4 @@
-export const MentorCard = ({ name, role, company, skills, experience, industry, availability, matchPercentage, photo, onRequest }: any) => {
+export const MentorCard = ({ name, role, company, skills, experience, industry, availability, matchPercentage, photo, onRequest }) => {
   return (
     <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition">
       <img src={photo} alt={name} className="w-full h-48 object-cover" />
@@ -23,14 +23,14 @@ export const MentorCard = ({ name, role, company, skills, experience, industry, 
               <span>{experience}</span>
             </div>
           )}
-          
+
           {industry && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <span className="font-semibold">💼 Industry:</span>
               <span>{industry}</span>
             </div>
           )}
-          
+
           {availability && (
             <div className="flex items-center gap-2 text-xs text-gray-600">
               <span className="font-semibold">🕐 Available:</span>
@@ -43,7 +43,7 @@ export const MentorCard = ({ name, role, company, skills, experience, industry, 
           <div className="mb-4">
             <p className="text-sm text-gray-500 mb-2 font-semibold">Skills:</p>
             <div className="flex flex-wrap gap-2">
-              {skills.slice(0, 5).map((skill: string, index: number) => (
+              {skills.slice(0, 5).map((skill, index) => (
                 <span key={index} className="bg-gray-100 text-gray-700 text-xs px-3 py-1 rounded-full">
                   {skill}
                 </span>
@@ -54,8 +54,8 @@ export const MentorCard = ({ name, role, company, skills, experience, industry, 
             </div>
           </div>
         )}
-        
-        <button 
+
+        <button
           onClick={onRequest}
           className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
         >

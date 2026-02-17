@@ -1,4 +1,4 @@
-export const EventCard = ({ title, speaker, date, time, category, onRegister }: any) => {
+export const EventCard = ({ title, speaker, date, time, category, onRegister }) => {
   return (
     <div className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
       <div className="flex justify-between items-start mb-4">
@@ -14,7 +14,7 @@ export const EventCard = ({ title, speaker, date, time, category, onRegister }: 
         <p>📅 {date}</p>
         <p>⏰ {time}</p>
       </div>
-      <button 
+      <button
         onClick={onRegister}
         className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition"
       >

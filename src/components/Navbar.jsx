@@ -1,16 +1,12 @@
 import React from 'react'
 
-interface NavbarProps {
-  onNavigate?: (page: string) => void
-}
-
-export const Navbar = ({ onNavigate }: NavbarProps) => {
+export const Navbar = ({ onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
   const [userMenuOpen, setUserMenuOpen] = React.useState(false)
   const [notifOpen, setNotifOpen] = React.useState(false)
-  const [notifications, setNotifications] = React.useState<any[]>([])
+  const [notifications, setNotifications] = React.useState([])
   const [unreadCount, setUnreadCount] = React.useState(0)
-  const [user, setUser] = React.useState<any>(null)
+  const [user, setUser] = React.useState(null)
 
   React.useEffect(() => {
     const userData = localStorage.getItem('user')
@@ -29,7 +25,7 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
         const j = await res.json()
         if (j.success) {
           setNotifications(j.data || [])
-          setUnreadCount((j.data || []).filter((n:any) => !n.read).length)
+          setUnreadCount((j.data || []).filter((n) => !n.read).length)
         }
       } catch (err) {
         console.error('Failed to fetch notifications', err)
@@ -48,13 +44,13 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
     <nav className="bg-white shadow-md">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <button 
+          <button
             onClick={() => onNavigate?.('landing')}
             className="text-2xl font-bold text-blue-600 hover:text-blue-700"
           >
             AlumniConnect
           </button>
-          
+
           <div className="hidden md:flex items-center gap-4">
           </div>
 
@@ -100,7 +96,7 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
             </div>
             {user ? (
               <div className="relative">
-                <button 
+                <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
                   className="flex items-center gap-2 bg-blue-100 text-blue-600 px-4 py-2 rounded-lg hover:bg-blue-200"
                 >
@@ -108,7 +104,7 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
                 </button>
                 {userMenuOpen && (
                   <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
-                    <button 
+                    <button
                       onClick={() => {
                         onNavigate?.('profile')
                         setUserMenuOpen(false)
@@ -117,7 +113,7 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
                     >
                       Profile
                     </button>
-                    <button 
+                    <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 hover:bg-gray-100 text-red-600 border-t"
                     >
@@ -128,13 +124,13 @@ export const Navbar = ({ onNavigate }: NavbarProps) => {
               </div>
             ) : (
               <>
-                <button 
+                <button
                   onClick={() => onNavigate?.('login')}
                   className="text-gray-700 hover:text-blue-600"
                 >
                   Login
                 </button>
-                <button 
+                <button
                   onClick={() => onNavigate?.('register')}
                   className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
                 >

@@ -1,6 +1,6 @@
 import { Users, Award, Calendar, Briefcase } from 'lucide-react';
 
-export const FeatureCard = ({ icon: Icon, title, description }: { icon: any, title: string, description: string }) => {
+export const FeatureCard = ({ icon: Icon, title, description }) => {
   return (
     <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition">
       <Icon className="w-12 h-12 text-blue-600 mb-4" />
