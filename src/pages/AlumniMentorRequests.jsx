@@ -23,6 +23,7 @@ export const AlumniMentorRequests = ({ onNavigate }) => {
       // No fallback - show error message
       console.error('Error loading requests', err)
       setRequests([])
+    } finally {
       setLoading(false)
     }
   }
@@ -88,13 +89,27 @@ export const AlumniMentorRequests = ({ onNavigate }) => {
               {requests.length === 0 && <p className="text-sm text-gray-500">No mentorship requests found.</p>}
               {requests.map((r) => (
                 <div key={r._id || r.id} className="p-4 border rounded flex justify-between items-start">
+                  {(() => {
+                    const normalizedStatus = String(r.status || 'pending').toLowerCase()
+                    return (
+                      <>
                   <div>
                     <p className="font-semibold">{r.studentName || r.student || 'Student'}</p>
                     <p className="text-sm text-gray-600">Topic: {r.topic}</p>
                     <p className="text-sm text-gray-500 mt-1">{r.note}</p>
                     <p className="text-xs text-gray-400 mt-2">Requested: {new Date(r.createdAt).toLocaleString()}</p>
                     {r.mentorName && <p className="text-xs text-blue-600 mt-1">To: {r.mentorName}</p>}
-                    <p className="text-xs mt-2"><span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">{(r.status || 'pending').toUpperCase()}</span></p>
+                    <p className="text-xs mt-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${
+                        normalizedStatus === 'accepted'
+                          ? 'bg-green-100 text-green-800'
+                          : normalizedStatus === 'declined'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {(r.status || 'pending').toUpperCase()}
+                      </span>
+                    </p>
                   </div>
                   <div className="flex flex-col gap-2">
                     <button
@@ -104,9 +119,16 @@ export const AlumniMentorRequests = ({ onNavigate }) => {
                     >
                       View Profile
                     </button>
-                    <button onClick={() => respondTo(r._id || r.id, 'accept')} className="px-3 py-2 bg-green-600 text-white rounded">Accept</button>
-                    <button onClick={() => respondTo(r._id || r.id, 'decline')} className="px-3 py-2 bg-red-100 text-red-600 rounded">Decline</button>
+                    {normalizedStatus === 'pending' && (
+                      <>
+                        <button onClick={() => respondTo(r._id || r.id, 'accept')} className="px-3 py-2 bg-green-600 text-white rounded">Accept</button>
+                        <button onClick={() => respondTo(r._id || r.id, 'decline')} className="px-3 py-2 bg-red-100 text-red-600 rounded">Decline</button>
+                      </>
+                    )}
                   </div>
+                      </>
+                    )
+                  })()}
                 </div>
               ))}
             </div>

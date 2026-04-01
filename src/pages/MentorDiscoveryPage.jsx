@@ -18,19 +18,32 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
   const [selectedMentor, setSelectedMentor] = useState(null);
   const [requestForm, setRequestForm] = useState({ topic: '', note: '' });
   const [requestMessage, setRequestMessage] = useState(null);
+  const [mentorships, setMentorships] = useState([]);
+  const [mentorshipStatus, setMentorshipStatus] = useState(null); // 'active', 'completed', or null
 
   useEffect(() => {
     fetchMentors();
+    fetchMentorships();
   }, []);
 
   useEffect(() => {
     filterMentors();
   }, [mentors, searchTerm, selectedIndustry, selectedExperience, selectedAvailability]);
 
+  useEffect(() => {
+    // Refetch mentorships when modal opens
+    if (showRequestModal) {
+      fetchMentorships();
+    }
+  }, [showRequestModal]);
+
   const fetchMentors = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/mentors`);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/mentors`, {
+        headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+      });
       const result = await response.json();
       if (result.success) {
         setMentors(result.data);
@@ -43,6 +56,31 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
       setError('Error fetching mentors. Make sure backend is running.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMentorships = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.log('No token found');
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/mentorship/my-requests`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const result = await response.json();
+      console.log('Mentorships API Response:', result);
+      if (result.success) {
+        console.log('Fetched mentorships:', result.data);
+        result.data?.forEach((m, idx) => {
+          console.log(`Mentorship ${idx}:`, { mentorId: m.mentorId, mentorName: m.mentorName, status: m.status });
+        });
+        setMentorships(result.data || []);
+      }
+    } catch (err) {
+      console.error('Error fetching mentorships:', err);
     }
   };
 
@@ -93,12 +131,69 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
   const handleRequestMentor = (mentorId) => {
     const mentor = mentors.find(m => m.id === mentorId || m._id === mentorId);
     if (mentor) {
+      console.log('Selected mentor:', mentor);
+      console.log('Looking for mentorships with ID:', mentorId, mentor._id);
+      console.log('All mentorships:', mentorships);
+      
+      // Check if student already has a mentorship with this mentor
+      const existingMentorship = mentorships.find(m => {
+        const mentorIdStr = String(m.mentorId || m.mentor?._id || '').trim().toLowerCase();
+        const mentorNameStr = String(m.mentorName || '').trim().toLowerCase();
+        const searchIdStr1 = String(mentorId || '').trim().toLowerCase();
+        const searchIdStr2 = String(mentor._id || mentor.id || '').trim().toLowerCase();
+        const searchNameStr = String(mentor.name || mentor.fullName || '').trim().toLowerCase();
+        
+        console.log('Comparing:', { 
+          mentorIdStr, 
+          mentorNameStr,
+          searchIdStr1, 
+          searchIdStr2, 
+          searchNameStr,
+          idMatch1: mentorIdStr === searchIdStr1, 
+          idMatch2: mentorIdStr === searchIdStr2,
+          nameMatch: mentorNameStr === searchNameStr
+        });
+        
+        return mentorIdStr === searchIdStr1 || mentorIdStr === searchIdStr2 || mentorNameStr === searchNameStr;
+      });
+      
+      console.log('Found existing mentorship:', existingMentorship);
+      
+      if (existingMentorship) {
+        // Check status: 'accepted' means active, and other completed states
+        if (existingMentorship.status === 'accepted' || existingMentorship.status === 'active') {
+          setMentorshipStatus('active');
+        } else if (existingMentorship.status === 'completed') {
+          setMentorshipStatus('completed');
+        } else if (existingMentorship.status === 'pending') {
+          setMentorshipStatus('pending');
+        }
+      } else {
+        setMentorshipStatus(null);
+      }
+      
       setSelectedMentor(mentor);
       setShowRequestModal(true);
     }
   };
 
   const submitRequest = async () => {
+    // Check if already has active or completed mentorship
+    if (mentorshipStatus === 'active') {
+      setRequestMessage('Already under this mentor');
+      return;
+    }
+    
+    if (mentorshipStatus === 'completed') {
+      setRequestMessage('Already completed mentorship with this mentor');
+      return;
+    }
+    
+    if (mentorshipStatus === 'pending') {
+      setRequestMessage('Request already pending with this mentor');
+      return;
+    }
+
     if (!requestForm.topic.trim() || !requestForm.note.trim()) {
       setRequestMessage('Please fill in all fields');
       return;
@@ -288,6 +383,23 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
               Send a mentorship request to <span className="font-semibold">{selectedMentor?.name || selectedMentor?.fullName}</span>
             </p>
 
+            {/* Status Badge */}
+            {mentorshipStatus && (
+              <div className={`mb-4 p-3 rounded-lg text-sm font-semibold ${
+                mentorshipStatus === 'active' 
+                  ? 'bg-yellow-100 text-yellow-700 border border-yellow-300' 
+                  : mentorshipStatus === 'pending'
+                  ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                  : 'bg-green-100 text-green-700 border border-green-300'
+              }`}>
+                {mentorshipStatus === 'active' 
+                  ? '✓ Already under this mentor' 
+                  : mentorshipStatus === 'pending'
+                  ? '⏳ Request already pending with this mentor'
+                  : '✓ Already completed with this mentor'}
+              </div>
+            )}
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">Topic</label>
@@ -296,7 +408,8 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
                   value={requestForm.topic}
                   onChange={(e) => setRequestForm({ ...requestForm, topic: e.target.value })}
                   placeholder="e.g., React Development, Career Guidance"
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={mentorshipStatus !== null}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -307,7 +420,8 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
                   onChange={(e) => setRequestForm({ ...requestForm, note: e.target.value })}
                   placeholder="Tell the mentor why you'd like their guidance..."
                   rows={4}
-                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={mentorshipStatus !== null}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
                 />
               </div>
 
@@ -323,14 +437,20 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
                     setShowRequestModal(false);
                     setRequestForm({ topic: '', note: '' });
                     setRequestMessage(null);
+                    setMentorshipStatus(null);
                   }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   onClick={submitRequest}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  disabled={mentorshipStatus !== null}
+                  className={`flex-1 px-4 py-2 text-white rounded-lg ${
+                    mentorshipStatus !== null 
+                      ? 'bg-gray-400 cursor-not-allowed' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
                 >
                   Send Request
                 </button>

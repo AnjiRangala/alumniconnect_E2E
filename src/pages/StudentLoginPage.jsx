@@ -33,18 +33,27 @@ export function StudentLoginPage({ onNavigate }) {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email, password, loginAs: 'student' })
       })
 
       const result = await response.json()
 
       if (result.success) {
+        if ((result?.data?.user?.userType || '').toLowerCase() !== 'student') {
+          setError('This is a student login. Please use the correct credentials for this student.')
+          setLoading(false)
+          return
+        }
         // Store user info and token in localStorage
         localStorage.setItem('token', result.data.token)
         localStorage.setItem('user', JSON.stringify(result.data.user))
         onNavigate('student-dashboard')
       } else {
-        setError(result.message || 'Login failed')
+        if (response.status === 403) {
+          setError('This is a student login. Please use the correct credentials for this student.')
+        } else {
+          setError(result.message || 'Login failed')
+        }
       }
     } catch (err) {
       console.error('Login error:', err)
@@ -88,6 +97,8 @@ export function StudentLoginPage({ onNavigate }) {
               <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
                 type="email"
+                name="email"
+                autoComplete="username email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@college.com"
@@ -103,6 +114,8 @@ export function StudentLoginPage({ onNavigate }) {
               <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -126,6 +139,17 @@ export function StudentLoginPage({ onNavigate }) {
           >
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
+
+          {/* Forgot Password Link */}
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => onNavigate('forgot-password')}
+              className="text-blue-600 hover:text-blue-700 font-semibold text-sm mt-2"
+            >
+              Forgot Password?
+            </button>
+          </div>
         </form>
 
         {/* Divider */}

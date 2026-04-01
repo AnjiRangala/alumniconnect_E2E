@@ -21,6 +21,20 @@ export const BadgeModal = ({ badge, onClose }) => {
           <p className="text-sm text-gray-500">{badge.awardedAt ? new Date(badge.awardedAt).toLocaleString() : '—'}</p>
         </div>
 
+        {badge.giverName && (
+          <div className="mt-3">
+            <h3 className="font-semibold">Awarded By</h3>
+            <p className="text-sm text-gray-500">{badge.giverName}</p>
+          </div>
+        )}
+
+        {badge.message && (
+          <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+            <h3 className="font-semibold text-sm mb-2">💌 Message from Alumni</h3>
+            <p className="text-sm text-gray-700 italic">"{badge.message}"</p>
+          </div>
+        )}
+
         {badge.source && (
           <div className="mt-3">
             <h3 className="font-semibold">Source</h3>

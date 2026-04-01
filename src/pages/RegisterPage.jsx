@@ -1,7 +1,33 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Mail, Lock, User, Building, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 
 const API_BASE_URL = 'http://localhost:5000/api';
+const AP_COLLEGES_FALLBACK = [
+  'Andhra University College of Engineering, Visakhapatnam',
+  'JNTUA College of Engineering, Anantapur',
+  'JNTUK University College of Engineering, Kakinada',
+  'SVU College of Engineering, Tirupati',
+  'GMR Institute of Technology, Rajam',
+  'VR Siddhartha Engineering College, Vijayawada',
+  'Vignan\'s Foundation for Science, Technology & Research, Guntur',
+  'RVR & JC College of Engineering, Guntur',
+  'K L University, Guntur',
+  'Lakireddy Bali Reddy College of Engineering, Mylavaram',
+  'Vasireddy Venkatadri Institute of Technology, Guntur',
+  'Aditya Engineering College, Surampalem',
+  'Pragati Engineering College, Surampalem',
+  'Sree Vidyanikethan Engineering College, Tirupati',
+  'Madanapalle Institute of Technology & Science, Madanapalle',
+  'Anil Neerukonda Institute of Technology & Sciences, Visakhapatnam',
+  'Gayatri Vidya Parishad College of Engineering, Visakhapatnam',
+  'Bapatla Engineering College, Bapatla',
+  'PVP Siddhartha Institute of Technology, Vijayawada',
+  'NRI Institute of Technology, Guntur',
+  'Sri Venkateswara College of Engineering & Technology, Chittoor',
+  'QIS College of Engineering & Technology, Ongole',
+  'Pace Institute of Technology & Sciences, Ongole',
+  'Rajeev Gandhi Memorial College of Engineering & Technology, Nandyal'
+]
 
 export function RegisterPage({ onNavigate }) {
   const [userType, setUserType] = useState('student')
@@ -11,13 +37,32 @@ export function RegisterPage({ onNavigate }) {
     password: '',
     confirmPassword: '',
     company: '',
+    availability: '',
+    institution: '',
     skills: ''
   })
+  const [colleges, setColleges] = useState(AP_COLLEGES_FALLBACK)
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const fetchColleges = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/institutions/ap-engineering`)
+        const result = await response.json()
+        if (result?.success && Array.isArray(result.data) && result.data.length > 0) {
+          setColleges(result.data)
+        }
+      } catch (_err) {
+        setColleges(AP_COLLEGES_FALLBACK)
+      }
+    }
+
+    fetchColleges()
+  }, [])
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
@@ -31,7 +76,7 @@ export function RegisterPage({ onNavigate }) {
     setLoading(true)
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword) {
+    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword || !formData.institution) {
       setError('Please fill in all required fields')
       setLoading(false)
       return
@@ -61,6 +106,12 @@ export function RegisterPage({ onNavigate }) {
       return
     }
 
+    if (userType === 'alumni' && !formData.availability) {
+      setError('Please select your availability')
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch(`${API_BASE_URL}/auth/register`, {
         method: 'POST',
@@ -73,6 +124,8 @@ export function RegisterPage({ onNavigate }) {
           password: formData.password,
           userType,
           company: formData.company || null,
+          availability: userType === 'alumni' ? formData.availability : null,
+          institution: formData.institution,
           skills: formData.skills
         })
       })
@@ -194,21 +247,55 @@ export function RegisterPage({ onNavigate }) {
             </div>
           </div>
 
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Institution (AP Engineering College) *</label>
+            <select
+              name="institution"
+              value={formData.institution}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="">Select your college</option>
+              {colleges.map((college) => (
+                <option key={college} value={college}>{college}</option>
+              ))}
+            </select>
+            <p className="text-xs text-gray-500 mt-1">Used to match students with alumni from the same institute.</p>
+          </div>
+
           {userType === 'alumni' && (
-            <div>
-              <label className="block text-gray-700 font-semibold mb-2">Company/Organization *</label>
-              <div className="relative">
-                <Building className="absolute left-3 top-3 text-gray-400" size={20} />
-                <input
-                  type="text"
-                  name="company"
-                  value={formData.company}
-                  onChange={handleInputChange}
-                  placeholder="Company Name"
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
-                />
+            <>
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Company/Organization *</label>
+                <div className="relative">
+                  <Building className="absolute left-3 top-3 text-gray-400" size={20} />
+                  <input
+                    type="text"
+                    name="company"
+                    value={formData.company}
+                    onChange={handleInputChange}
+                    placeholder="Company Name"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-gray-700 font-semibold mb-2">Availability *</label>
+                <select
+                  name="availability"
+                  value={formData.availability}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+                >
+                  <option value="">Select availability</option>
+                  <option value="Weekdays">Weekdays (Mon-Fri)</option>
+                  <option value="Weekends">Weekends (Sat-Sun)</option>
+                  <option value="Evenings">Evenings (after 6 PM)</option>
+                  <option value="Flexible">Flexible (Anytime)</option>
+                </select>
+              </div>
+            </>
           )}
 
           <div>

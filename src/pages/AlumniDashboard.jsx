@@ -2,34 +2,85 @@ import React, { useState, useEffect } from 'react'
 import { Navbar } from '../components/Navbar.jsx';
 import { Footer } from '../components/Footer.jsx';
 import { BadgeModal } from '../components/BadgeModal.jsx'
+import { BadgeAwardModal } from '../components/BadgeAwardModal.jsx'
 import { InputModal } from '../components/InputModal.jsx'
+import ImageCropModal from '../components/ImageCropModal.jsx'
+import AnnouncementModal from '../components/AnnouncementModal.jsx'
 
 export const AlumniDashboard = ({ onNavigate }) => {
   const [showNotifications, setShowNotifications] = useState(false)
   const [showBadgeModal, setShowBadgeModal] = useState(false)
+  const [showBadgeAwardModal, setShowBadgeAwardModal] = useState(false)
   const [selectedBadge, setSelectedBadge] = useState(null)
   const [mentees, setMentees] = useState(null)
   const [loadingMentees, setLoadingMentees] = useState(false)
   const [apiMessage, setApiMessage] = useState(null)
   const [showInviteModal, setShowInviteModal] = useState(null)
   const [showProfileEdit, setShowProfileEdit] = useState(false)
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false)
   const [profileData, setProfileData] = useState({
     role: '',
     company: '',
+    institution: '',
     experience: '',
     industry: 'Technology',
     availability: '',
     skills: [],
     linkedinUrl: '',
-    githubUrl: ''
+    githubUrl: '',
+    photo: ''
   })
   const [skillInput, setSkillInput] = useState('')
   const [loadingProfile, setLoadingProfile] = useState(false)
-  const [showMessages, setShowMessages] = useState(false)
-  const [messages, setMessages] = useState([])
-  const [loadingMessages, setLoadingMessages] = useState(false)
+  const [photoUploading, setPhotoUploading] = useState(false)
+  const [photoError, setPhotoError] = useState(null)
+  const [cropImage, setCropImage] = useState(null)
+  const [showCropModal, setShowCropModal] = useState(false)
+  const [myEvents, setMyEvents] = useState([])
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0)
+  const [colleges, setColleges] = useState([])
 
-  useEffect(()=>{ loadMentees(); loadProfile() }, [])
+  useEffect(()=>{ loadMentees(); loadProfile(); loadMyEvents(); loadPendingRequestsCount(); loadColleges() }, [])
+
+  useEffect(() => {
+    const syncAlumniProfile = () => {
+      loadProfile()
+    }
+
+    window.addEventListener('user-updated', syncAlumniProfile)
+    window.addEventListener('storage', syncAlumniProfile)
+
+    return () => {
+      window.removeEventListener('user-updated', syncAlumniProfile)
+      window.removeEventListener('storage', syncAlumniProfile)
+    }
+  }, [])
+  
+  // Auto-refresh events every 10 seconds to see new registrations
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadMyEvents()
+      loadPendingRequestsCount()
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const loadPendingRequestsCount = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const res = await fetch('http://localhost:5000/api/mentorship/requests', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const j = await res.json()
+      if (j.success) {
+        const pending = (j.data || []).filter((r) => String(r.status || '').toLowerCase() === 'pending').length
+        setPendingRequestsCount(pending)
+      }
+    } catch (err) {
+      console.error('Failed to load pending requests', err)
+    }
+  }
 
   const loadProfile = async () => {
     try {
@@ -43,16 +94,105 @@ export const AlumniDashboard = ({ onNavigate }) => {
         setProfileData({
           role: j.data.role || '',
           company: j.data.company || '',
+          institution: j.data.institution || '',
           experience: j.data.experience || '',
           industry: j.data.industry || 'Technology',
           availability: j.data.availability || '',
           skills: j.data.skills || [],
           linkedinUrl: j.data.linkedinUrl || '',
-          githubUrl: j.data.githubUrl || ''
+          githubUrl: j.data.githubUrl || '',
+          photo: j.data.photo || ''
         })
       }
     } catch (err) {
       console.error('Failed to load profile', err)
+    }
+  }
+
+  const loadColleges = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/institutions/ap-engineering')
+      const j = await res.json()
+      if (j.success && Array.isArray(j.data)) {
+        setColleges(j.data)
+      }
+    } catch (err) {
+      console.error('Failed to load colleges', err)
+    }
+  }
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const allowedTypes = ['image/jpeg', 'image/png']
+    if (!allowedTypes.includes(file.type)) {
+      setPhotoError('Please upload a JPEG or PNG image')
+      return
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setPhotoError('Image size must be less than 2MB')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+      setCropImage(reader.result)
+      setShowCropModal(true)
+      setPhotoError(null)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCropComplete = async (croppedImageBase64) => {
+    setShowCropModal(false)
+    setPhotoUploading(true)
+    setPhotoError(null)
+
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setPhotoError('Please login to upload a photo')
+        setPhotoUploading(false)
+        return
+      }
+
+      const response = await fetch('http://localhost:5000/api/profile/upload-photo', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ photoBase64: croppedImageBase64 })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        setPhotoError(errorData.message || `Server error: ${response.status}`)
+        setPhotoUploading(false)
+        return
+      }
+
+      const result = await response.json()
+      if (result.success) {
+        setProfileData(prev => ({ ...prev, photo: result.data?.photo || croppedImageBase64 }))
+        const stored = localStorage.getItem('user')
+        if (stored) {
+          const parsed = JSON.parse(stored)
+          parsed.photo = result.data?.photo || croppedImageBase64
+          localStorage.setItem('user', JSON.stringify(parsed))
+        }
+        setPhotoError(null)
+      } else {
+        setPhotoError(result.message || 'Failed to upload photo')
+      }
+    } catch (err) {
+      console.error('Error uploading photo:', err)
+      setPhotoError(`Upload error: ${err.message}`)
+    } finally {
+      setPhotoUploading(false)
+      setCropImage(null)
     }
   }
 
@@ -74,6 +214,13 @@ export const AlumniDashboard = ({ onNavigate }) => {
       })
       const j = await res.json()
       if (j.success) {
+        try {
+          const stored = localStorage.getItem('user')
+          const parsed = stored ? JSON.parse(stored) : {}
+          localStorage.setItem('user', JSON.stringify({ ...parsed, ...j.data }))
+          window.dispatchEvent(new Event('user-updated'))
+        } catch (_err) {}
+
         showTempMessage('Profile updated successfully!')
         setShowProfileEdit(false)
       } else {
@@ -96,30 +243,6 @@ export const AlumniDashboard = ({ onNavigate }) => {
 
   const removeSkill = (skill) => {
     setProfileData({ ...profileData, skills: profileData.skills.filter(s => s !== skill) })
-  }
-
-  const loadMessages = async () => {
-    setLoadingMessages(true)
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) return
-      const res = await fetch('http://localhost:5000/api/messages', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
-      const j = await res.json()
-      if (j.success) {
-        setMessages(j.data || [])
-      }
-    } catch (err) {
-      console.error('Failed to load messages', err)
-    } finally {
-      setLoadingMessages(false)
-    }
-  }
-
-  const openMessages = () => {
-    setShowMessages(true)
-    loadMessages()
   }
 
   const loadMentees = async () => {
@@ -174,6 +297,58 @@ export const AlumniDashboard = ({ onNavigate }) => {
     } catch (err) { /* ignore */ }
     setShowBadgeModal(true)
   }
+
+  const loadMyEvents = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const res = await fetch('http://localhost:5000/api/events/created/by-me', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const j = await res.json()
+      if (j.success) {
+        let currentUser = {}
+        try {
+          currentUser = JSON.parse(localStorage.getItem('user') || '{}')
+        } catch {
+          currentUser = {}
+        }
+
+        const currentUserId = String(currentUser?._id || currentUser?.id || '')
+        const currentUserEmail = String(currentUser?.email || '').toLowerCase().trim()
+        const mine = (j.data || []).filter((event) => {
+          const creatorId = String(event?.createdBy?.userId || event?.createdBy || '')
+          const creatorEmail = String(event?.createdBy?.userEmail || '').toLowerCase().trim()
+          return (creatorId && currentUserId && creatorId === currentUserId) || (creatorEmail && currentUserEmail && creatorEmail === currentUserEmail)
+        })
+
+        setMyEvents(mine)
+      }
+    } catch (err) {
+      console.error('Failed to load events', err)
+    }
+  }
+
+  const eventsThisWeek = (myEvents || []).filter((event) => {
+    if (!event?.date) return false
+    const eventDate = new Date(event.date)
+    if (Number.isNaN(eventDate.getTime())) return false
+
+    const now = new Date()
+    const day = now.getDay()
+    const mondayOffset = day === 0 ? -6 : 1 - day
+
+    const startOfWeek = new Date(now)
+    startOfWeek.setDate(now.getDate() + mondayOffset)
+    startOfWeek.setHours(0, 0, 0, 0)
+
+    const endOfWeek = new Date(startOfWeek)
+    endOfWeek.setDate(startOfWeek.getDate() + 6)
+    endOfWeek.setHours(23, 59, 59, 999)
+
+    return eventDate >= startOfWeek && eventDate <= endOfWeek
+  }).length
+
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
       <Navbar onNavigate={onNavigate} />
@@ -186,11 +361,11 @@ export const AlumniDashboard = ({ onNavigate }) => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
           <div className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition" onClick={() => onNavigate('alumni-requests')}>
             <div className="text-3xl mb-2">📬</div>
             <p className="text-gray-600 text-sm">Mentorship Requests</p>
-            <p className="text-2xl font-bold text-green-600">New</p>
+            <p className="text-2xl font-bold text-green-600">{pendingRequestsCount}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-lg transition" onClick={() => onNavigate('alumni-mentees')}>
             <div className="text-3xl mb-2">👨‍🎓</div>
@@ -199,302 +374,123 @@ export const AlumniDashboard = ({ onNavigate }) => {
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
             <div className="text-3xl mb-2">📅</div>
-            <p className="text-gray-600 text-sm">Sessions This Week</p>
-            <p className="text-2xl font-bold text-green-600">
-              {mentees?.reduce((sum, m) => sum + (m.sessions || 0), 0) || 0}
-            </p>
+            <p className="text-gray-600 text-sm">Events This Week</p>
+            <p className="text-2xl font-bold text-green-600">{eventsThisWeek}</p>
           </div>
           <div className="bg-white p-6 rounded-lg shadow-md">
-            <div className="text-3xl mb-2">🏅</div>
-            <p className="text-gray-600 text-sm">Badges Earned</p>
-            <p className="text-2xl font-bold text-green-600">7</p>
+            <div className="text-3xl mb-2">🎤</div>
+            <p className="text-gray-600 text-sm">Events Created</p>
+            <p className="text-2xl font-bold text-green-600">{myEvents?.length || 0}</p>
+          </div>
+          <div className="bg-white p-6 rounded-lg shadow-md">
+            <div className="text-3xl mb-2">👥</div>
+            <p className="text-gray-600 text-sm">Total Registrations</p>
+            <p className="text-2xl font-bold text-green-600">
+              {myEvents?.reduce((sum, e) => sum + (e.attendees?.length || 0), 0) || 0}
+            </p>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
-          <button onClick={() => setShowProfileEdit(true)} className="bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-semibold">
-            👤 Edit Profile
-          </button>
-          <button onClick={() => onNavigate('alumni-endorse')} className="bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 font-semibold">
-            ✏️ Endorse Skills
-          </button>
-          <button onClick={() => onNavigate('alumni-post-job')} className="bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold">
-            📋 Post Job
-          </button>
-          <button onClick={() => onNavigate('alumni-create-event')} className="bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 font-semibold">
-            🎤 Create Event
-          </button>
-          <button onClick={() => onNavigate('alumni-requests')} className="bg-yellow-500 text-white py-3 rounded-lg hover:bg-yellow-600 font-semibold">
-            📬 Mentor Requests
-          </button>
-        </div>
-
-        {/* Main Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left column: Schedule & Badges */}
-          <div className="lg:col-span-2 space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-4">📅 Upcoming Sessions</h2>
-              <div className="space-y-3">
-                {mentees && mentees.length > 0 ? (
-                  mentees.slice(0, 2).map((mentee) => (
-                    <div key={mentee._id || mentee.id} className="p-3 bg-blue-50 rounded-lg text-sm">
-                      <p className="font-semibold">Session with {mentee.fullName}</p>
-                      <p className="text-gray-600">Schedule a session to get started</p>
-                    </div>
-                  ))
-                ) : (
-                  <>
-                    <div className="p-3 bg-blue-50 rounded-lg text-sm">
-                      <p className="font-semibold">No upcoming sessions</p>
-                      <p className="text-gray-600">Accept mentorship requests to start mentoring</p>
-                    </div>
-                  </>
-                )}
+        {/* Navigation Cards (Student dashboard style) */}
+        <div className="mb-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Dashboard Navigation</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <button
+              onClick={() => setShowProfileEdit(true)}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-indigo-100 text-indigo-600">👤</div>
+              <div>
+                <p className="font-semibold text-sm">Edit Profile</p>
+                <p className="text-xs text-gray-500">Update your mentor details</p>
               </div>
-            </div>
+            </button>
 
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-4">🏅 Badges Earned</h2>
-              <div className="grid grid-cols-3 gap-2">
-                {["🌟", "🎖️", "⭐", "👑", "🏆", "💎"].map((badge, index) => (
-                  <div key={index} className="text-center text-2xl p-2 bg-gray-100 rounded">
-                    {badge}
-                  </div>
-                ))}
+            <button
+              onClick={() => onNavigate('alumni-endorse')}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-blue-100 text-blue-600">✏️</div>
+              <div>
+                <p className="font-semibold text-sm">Endorse Skills</p>
+                <p className="text-xs text-gray-500">Support mentee growth</p>
               </div>
-            </div>
+            </button>
 
-            {/* Endorse Students */}
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold">👨‍🎓 Your Mentees</h2>
-                <button
-                  onClick={() => onNavigate('alumni-mentees')}
-                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
-                >
-                  View All
-                </button>
+            <button
+              onClick={() => setShowBadgeAwardModal(true)}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-yellow-100 text-yellow-700">🏅</div>
+              <div>
+                <p className="font-semibold text-sm">Award Badge</p>
+                <p className="text-xs text-gray-500">Recognize achievements</p>
               </div>
-              {apiMessage && <div className="mb-3 p-2 bg-green-100 text-green-800 rounded">{apiMessage}</div>}
-              {loadingMentees && <div className="text-sm text-gray-500">Loading mentees…</div>}
-              {!loadingMentees && mentees && mentees.length===0 && (
-                <div className="text-sm text-gray-500 bg-blue-50 p-4 rounded">
-                  <p className="font-semibold mb-2">No mentees yet</p>
-                  <p>Accept mentorship requests to start mentoring students!</p>
-                  <button
-                    onClick={() => onNavigate('alumni-requests')}
-                    className="mt-3 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-                  >
-                    View Requests
-                  </button>
-                </div>
-              )}
-              <div className="space-y-3">
-                {mentees && mentees.slice(0, 3).map(m=> (
-                  <div key={m._id || m.id || m.idStr} className="p-3 border rounded hover:shadow-md transition">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <div className="font-semibold">{m.fullName}</div>
-                        <div className="text-sm text-gray-500">Sessions: {(m.sessions||0)}/{m.sessionsGoal||10}</div>
-                        <div className="bg-gray-200 h-2 rounded mt-2">
-                          <div
-                            className="bg-green-600 h-2 rounded"
-                            style={{ width: `${Math.round(((m.sessions||0)/(m.sessionsGoal||10))*100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex gap-2 mt-3">
-                      <button
-                        onClick={() => {
-                          setShowInviteModal(m)
-                        }}
-                        className="flex-1 px-2 py-1 bg-indigo-500 text-white rounded text-sm hover:bg-indigo-600"
-                      >
-                        💬 Message
-                      </button>
-                      <button
-                        onClick={() => onNavigate('alumni-mentees')}
-                        className="flex-1 px-2 py-1 bg-gray-100 rounded text-sm hover:bg-gray-200"
-                      >
-                        Manage
-                      </button>
-                    </div>
-                    {m.skills && m.skills.length > 0 && (
-                      <div className="mt-2 flex gap-2 flex-wrap">
-                        {(m.skills || ['Career']).slice(0,3).map((s,i)=>(
-                          <button
-                            key={i}
-                            onClick={()=>endorseSkill(m._id||m.id||m.idStr, s)}
-                            className="px-2 py-1 bg-blue-50 border rounded text-xs hover:bg-blue-100"
-                          >
-                            👍 {s}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+            </button>
+
+            <button
+              onClick={() => onNavigate('alumni-post-job')}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-green-100 text-green-700">📋</div>
+              <div>
+                <p className="font-semibold text-sm">Post Job</p>
+                <p className="text-xs text-gray-500">Create opportunities</p>
               </div>
-            </div>
-          </div>
+            </button>
 
-          {/* Right column: Feature cards (use the white space) */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-4">Quick Actions</h2>
-              <div className="grid grid-cols-1 gap-3">
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">📣 Post Announcement</p>
-                    <p className="text-sm text-gray-500">Share an announcement with your students.</p>
-                  </div>
-                  <div>
-                    <button onClick={() => alert('Post Announcement — placeholder')} className="px-3 py-2 bg-blue-600 text-white rounded">Post</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">� Messages</p>
-                    <p className="text-sm text-gray-500">View messages from your mentees.</p>
-                  </div>
-                  <div>
-                    <button onClick={openMessages} className="px-3 py-2 bg-indigo-600 text-white rounded">Open</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">�🕒 Schedule Office Hours</p>
-                    <p className="text-sm text-gray-500">Set up recurring office hours for students to book.</p>
-                  </div>
-                  <div>
-                    <button onClick={() => alert('Schedule Office Hours — placeholder')} className="px-3 py-2 bg-green-600 text-white rounded">Schedule</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">📊 View Analytics</p>
-                    <p className="text-sm text-gray-500">Open analytics to view engagement metrics.</p>
-                  </div>
-                  <div>
-                    <button onClick={() => onNavigate('alumni-analytics')} className="px-3 py-2 bg-indigo-600 text-white rounded">Open</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">✉️ Invite Students</p>
-                    <p className="text-sm text-gray-500">Send invites to students to join your sessions.</p>
-                  </div>
-                  <div>
-                    <button onClick={() => alert('Invite Students — placeholder')} className="px-3 py-2 bg-yellow-500 text-white rounded">Invite</button>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">🔔 Notifications</p>
-                    <p className="text-sm text-gray-500">View recent mentorship notifications.</p>
-                  </div>
-                  <div>
-                    <button onClick={()=>setShowNotifications(s=>!s)} className="px-3 py-2 bg-gray-100 rounded">Open</button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between p-3 border rounded">
-                  <div>
-                    <p className="font-semibold">🏅 Manage Badges</p>
-                    <p className="text-sm text-gray-500">View and award badges to your mentees.</p>
-                  </div>
-                  <div>
-                    <button onClick={openBadgeManager} className="px-3 py-2 bg-indigo-600 text-white rounded">Manage</button>
-                  </div>
-                </div>
+            <button
+              onClick={() => onNavigate('alumni-job-applications')}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-cyan-100 text-cyan-700">📬</div>
+              <div>
+                <p className="font-semibold text-sm">Job Applications</p>
+                <p className="text-xs text-gray-500">Review applicants</p>
               </div>
-            </div>
+            </button>
+
+            <button
+              onClick={() => onNavigate('alumni-events-manage')}
+              className="w-full flex items-center gap-3 px-4 py-4 rounded-lg text-gray-700 bg-white border hover:bg-gray-50 transition text-left"
+            >
+              <div className="p-2 rounded-lg bg-purple-100 text-purple-700">🎤</div>
+              <div>
+                <p className="font-semibold text-sm">Manage Events</p>
+                <p className="text-xs text-gray-500">Status, attendees, and tracking</p>
+              </div>
+            </button>
           </div>
         </div>
 
+        {/* Quick Actions */}
+        <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold">Quick Actions</h2>
+            <p className="text-sm text-gray-500">Focused actions</p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <button
+              onClick={() => setShowAnnouncementModal(true)}
+              className="p-4 rounded-lg border text-left hover:border-blue-300 hover:bg-blue-50 transition"
+            >
+              <p className="font-semibold text-gray-900">📣 Post Announcement</p>
+              <p className="text-sm text-gray-600">Share an update with your students.</p>
+            </button>
+
+            <button
+              onClick={() => onNavigate('alumni-messages')}
+              className="p-4 rounded-lg border text-left hover:border-indigo-300 hover:bg-indigo-50 transition"
+            >
+              <p className="font-semibold text-gray-900">💬 Messages</p>
+              <p className="text-sm text-gray-600">Read and respond to mentees.</p>
+            </button>
+
+          </div>
+        </div>
         {/* Students moved to separate 'Manage Mentees' dashboard */}
       </main>
-
-      {/* Messages Panel */}
-      {showMessages && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-3xl w-full max-h-[80vh] flex flex-col">
-            <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 rounded-t-lg">
-              <div className="flex justify-between items-center">
-                <div>
-                  <h2 className="text-2xl font-bold text-white">💬 Messages</h2>
-                  <p className="text-indigo-100 text-sm mt-1">Messages from your mentees and students</p>
-                </div>
-                <button
-                  onClick={() => setShowMessages(false)}
-                  className="px-4 py-2 bg-white bg-opacity-20 text-white rounded-lg hover:bg-opacity-30"
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6">
-              {loadingMessages && (
-                <div className="text-center py-8">
-                  <div className="text-gray-500">Loading messages...</div>
-                </div>
-              )}
-
-              {!loadingMessages && messages.length === 0 && (
-                <div className="text-center py-12">
-                  <div className="text-6xl mb-4">📭</div>
-                  <p className="text-gray-600 text-lg font-medium">No messages yet</p>
-                  <p className="text-gray-500 text-sm mt-2">Messages from your mentees will appear here</p>
-                </div>
-              )}
-
-              {!loadingMessages && messages.length > 0 && (
-                <div className="space-y-4">
-                  {messages.map((msg, index) => (
-                    <div key={index} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                          <p className="font-semibold text-gray-800">{msg.fromName || 'Unknown'}</p>
-                          {msg.subject && (
-                            <p className="text-sm font-medium text-gray-600">{msg.subject}</p>
-                          )}
-                        </div>
-                        <span className="text-xs text-gray-500">
-                          {msg.createdAt ? new Date(msg.createdAt).toLocaleDateString() : 'Recent'}
-                        </span>
-                      </div>
-                      <p className="text-gray-700 text-sm whitespace-pre-wrap">{msg.body}</p>
-                      {!msg.read && (
-                        <span className="inline-block mt-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                          New
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="p-4 border-t bg-gray-50 rounded-b-lg">
-              <button
-                onClick={loadMessages}
-                disabled={loadingMessages}
-                className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:bg-gray-400"
-              >
-                {loadingMessages ? 'Refreshing...' : '🔄 Refresh Messages'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Profile Edit Modal */}
       {showProfileEdit && (
@@ -504,6 +500,21 @@ export const AlumniDashboard = ({ onNavigate }) => {
             <p className="text-gray-600 mb-6">Update your professional details to help students find and connect with you.</p>
 
             <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+              <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg border">
+                <img
+                  src={profileData.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.role || 'Alumni')}&size=128&background=random`}
+                  alt="Profile"
+                  className="w-16 h-16 rounded-full object-cover border"
+                />
+                <div>
+                  <label className="block text-sm font-medium mb-2">Profile Photo</label>
+                  <label className="inline-flex items-center px-3 py-2 bg-indigo-600 text-white rounded-lg cursor-pointer hover:bg-indigo-700 text-sm">
+                    {photoUploading ? 'Uploading...' : 'Upload Photo'}
+                    <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePhotoUpload} />
+                  </label>
+                  {photoError && <p className="text-xs text-red-600 mt-2">{photoError}</p>}
+                </div>
+              </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Current Role/Position *</label>
                 <input
@@ -524,6 +535,20 @@ export const AlumniDashboard = ({ onNavigate }) => {
                   placeholder="e.g., Google, Microsoft, Startup Inc"
                   className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-2">Institution (AP Engineering College)</label>
+                <select
+                  value={profileData.institution || ''}
+                  onChange={(e) => setProfileData({ ...profileData, institution: e.target.value })}
+                  className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                >
+                  <option value="">Select institution</option>
+                  {colleges.map((college) => (
+                    <option key={college} value={college}>{college}</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -684,9 +709,40 @@ export const AlumniDashboard = ({ onNavigate }) => {
         <BadgeModal badge={selectedBadge} onClose={()=>setShowBadgeModal(false)} />
       )}
 
+      {showBadgeAwardModal && (
+        <BadgeAwardModal 
+          mentees={mentees || []} 
+          onClose={() => setShowBadgeAwardModal(false)}
+          onAward={() => {
+            loadMentees()
+            showTempMessage('Badge awarded successfully! 🎉')
+          }}
+        />
+      )}
+
+      {/* Announcement Modal */}
+      <AnnouncementModal
+        isOpen={showAnnouncementModal}
+        onClose={() => setShowAnnouncementModal(false)}
+        onSuccess={() => {
+          showTempMessage('Announcement posted successfully! 📣')
+        }}
+      />
+
       {/* Invite modal for sending quick invites/messages */}
       {showInviteModal && (
-        <InputModal title={`Invite ${showInviteModal.fullName || showInviteModal.name || ''}`} placeholder="Write an invite message" initial={`Hi ${showInviteModal.fullName||''}, I'd like to invite you to join my office hours.`} onCancel={()=>setShowInviteModal(null)} onSubmit={(v)=>{ sendInvite(showInviteModal._id||showInviteModal.id||showInviteModal.idStr, v); setShowInviteModal(null) }} />
+        <InputModal title={`Invite ${showInviteModal.fullName || showInviteModal.name || ''}`} placeholder="Write an invite message" initial={`Hi ${showInviteModal.fullName||''}, I'd like to connect with you.`} onCancel={()=>setShowInviteModal(null)} onSubmit={(v)=>{ sendInvite(showInviteModal._id||showInviteModal.id||showInviteModal.idStr, v); setShowInviteModal(null) }} />
+      )}
+
+      {showCropModal && cropImage && (
+        <ImageCropModal
+          imageSrc={cropImage}
+          onCropComplete={handleCropComplete}
+          onCancel={() => {
+            setShowCropModal(false)
+            setCropImage(null)
+          }}
+        />
       )}
 
       <Footer />

@@ -1,18 +1,29 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import React from 'react'
 import { LandingPage } from './pages/LandingPage.jsx'
 import { StudentLoginPage } from './pages/StudentLoginPage.jsx'
 import { AlumniLoginPage } from './pages/AlumniLoginPage.jsx'
 import { LoginPage } from './pages/LoginPage.jsx'
 import { RegisterPage } from './pages/RegisterPage.jsx'
+import ForgotPasswordPage from './pages/ForgotPasswordPage.jsx'
+import ResetPasswordPage from './pages/ResetPasswordPage.jsx'
 import { StudentDashboard } from './pages/StudentDashboard.jsx'
+import { StudentMentorsDashboard } from './pages/StudentMentorsDashboard.jsx'
+import { StudentEventsDashboard } from './pages/StudentEventsDashboard.jsx'
+import { StudentProfile } from './pages/StudentProfile.jsx'
+import { StudentMessagesDashboard } from './pages/StudentMessagesDashboard.jsx'
+import { StudentApplicationsDashboard } from './pages/StudentApplicationsDashboard.jsx'
 import { AlumniDashboard } from './pages/AlumniDashboard.jsx'
 import { AlumniEndorse } from './pages/AlumniEndorse.jsx'
 import { AlumniPostJob } from './pages/AlumniPostJob.jsx'
 import { AlumniCreateEvent } from './pages/AlumniCreateEvent.jsx'
+import { AlumniEventsManage } from './pages/AlumniEventsManage.jsx'
+import { SendDemoEmail } from './pages/SendDemoEmail.jsx'
 import { AlumniMentorRequests } from './pages/AlumniMentorRequests.jsx'
 import { AlumniAnalytics } from './pages/AlumniAnalytics.jsx'
 import { AlumniMenteesDashboard } from './pages/AlumniMenteesDashboard.jsx'
+import { AlumniJobApplications } from './pages/AlumniJobApplications.jsx'
+import { AlumniMessagesDashboard } from './pages/AlumniMessagesDashboard.jsx'
 import { MentorDiscoveryPage } from './pages/MentorDiscoveryPage.jsx'
 import { EventsPage } from './pages/EventsPage.jsx'
 import { JobsPage } from './pages/JobsPage.jsx'
@@ -21,12 +32,73 @@ import './App.css'
 
 export const NavigationContext = React.createContext(undefined)
 
+const VALID_PAGES = new Set([
+  'landing',
+  'student-login',
+  'alumni-login',
+  'login',
+  'register',
+  'student-register',
+  'alumni-register',
+  'forgot-password',
+  'reset-password',
+  'student-dashboard',
+  'student-mentors',
+  'student-messages',
+  'student-applications',
+  'student-profile',
+  'student-events',
+  'alumni-dashboard',
+  'alumni-endorse',
+  'alumni-post-job',
+  'alumni-create-event',
+  'alumni-events-manage',
+  'alumni-send-demo-email',
+  'alumni-requests',
+  'alumni-analytics',
+  'alumni-mentees',
+  'alumni-job-applications',
+  'alumni-messages',
+  'mentor-discovery',
+  'events',
+  'jobs',
+  'profile'
+])
+
+const getPageFromHash = () => {
+  const fromHash = (window.location.hash || '').replace(/^#\/?/, '')
+  if (VALID_PAGES.has(fromHash)) return fromHash
+  return 'landing'
+}
+
 function App() {
-  const [currentPage, setCurrentPage] = useState('landing')
+  const [currentPage, setCurrentPage] = useState(getPageFromHash)
 
   const navigate = (page) => {
+    if (!VALID_PAGES.has(page)) return
     setCurrentPage(page)
   }
+
+  useEffect(() => {
+    const hashPage = (window.location.hash || '').replace(/^#\/?/, '')
+    if (hashPage !== currentPage) {
+      window.location.hash = currentPage
+    }
+  }, [currentPage])
+
+  useEffect(() => {
+    localStorage.removeItem('currentPage')
+  }, [])
+
+  useEffect(() => {
+    const onHashChange = () => {
+      const page = getPageFromHash()
+      setCurrentPage(page)
+    }
+
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
 
   const renderPage = () => {
     switch (currentPage) {
@@ -44,8 +116,20 @@ function App() {
         return <RegisterPage onNavigate={navigate} />
       case 'alumni-register':
         return <RegisterPage onNavigate={navigate} />
+      case 'forgot-password':
+        return <ForgotPasswordPage onNavigate={navigate} />
+      case 'reset-password':
+        return <ResetPasswordPage onNavigate={navigate} />
       case 'student-dashboard':
         return <StudentDashboard onNavigate={navigate} />
+      case 'student-mentors':
+        return <StudentMentorsDashboard onNavigate={navigate} />
+      case 'student-messages':
+        return <StudentMessagesDashboard onNavigate={navigate} />
+      case 'student-applications':
+        return <StudentApplicationsDashboard onNavigate={navigate} />
+      case 'student-profile':
+        return <StudentProfile onNavigate={navigate} />
       case 'alumni-dashboard':
         return <AlumniDashboard onNavigate={navigate} />
       case 'alumni-endorse':
@@ -54,12 +138,20 @@ function App() {
         return <AlumniPostJob onNavigate={navigate} />
       case 'alumni-create-event':
         return <AlumniCreateEvent onNavigate={navigate} />
+      case 'alumni-events-manage':
+        return <AlumniEventsManage onNavigate={navigate} />
+      case 'alumni-send-demo-email':
+        return <SendDemoEmail onNavigate={navigate} />
       case 'alumni-requests':
         return <AlumniMentorRequests onNavigate={navigate} />
       case 'alumni-analytics':
         return <AlumniAnalytics onNavigate={navigate} />
       case 'alumni-mentees':
         return <AlumniMenteesDashboard onNavigate={navigate} />
+      case 'alumni-job-applications':
+        return <AlumniJobApplications onNavigate={navigate} />
+      case 'alumni-messages':
+        return <AlumniMessagesDashboard onNavigate={navigate} />
       case 'mentor-discovery':
         return <MentorDiscoveryPage onNavigate={navigate} />
       case 'events':
@@ -68,6 +160,8 @@ function App() {
         return <JobsPage onNavigate={navigate} />
       case 'profile':
         return <ProfilePage onNavigate={navigate} />
+      case 'student-events':
+        return <StudentEventsDashboard onNavigate={navigate} />
       default:
         return <LandingPage onNavigate={navigate} />
     }

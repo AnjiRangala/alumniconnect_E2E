@@ -33,9 +33,36 @@ export const AlumniEndorse = ({ onNavigate }) => {
       if (!token) { flash('Please log in to endorse'); return }
       const res = await fetch('http://localhost:5000/api/endorse', { method: 'POST', headers: { 'Content-Type':'application/json', 'Authorization': `Bearer ${token}` }, body: JSON.stringify({ targetUserId: mentee._id || mentee.id, skill }) })
       const j = await res.json()
-      if (j.success) flash(`Endorsed ${skill} for ${mentee.fullName}`)
+      if (j.success) {
+        setMentees(prev => (prev || []).map(m => {
+          const menteeId = m._id || m.id
+          const targetId = mentee._id || mentee.id
+          if (String(menteeId) !== String(targetId)) return m
+
+          const existing = (m.endorsements || []).find(e => String(e.skill || '').toLowerCase() === String(skill).toLowerCase())
+          let nextEndorsements = m.endorsements || []
+          if (existing) {
+            nextEndorsements = (m.endorsements || []).map(e => (
+              String(e.skill || '').toLowerCase() === String(skill).toLowerCase()
+                ? { ...e, count: (e.count || 0) + 1 }
+                : e
+            ))
+          } else {
+            nextEndorsements = [...(m.endorsements || []), { skill, count: 1 }]
+          }
+
+          return { ...m, endorsements: nextEndorsements }
+        }))
+
+        flash(`Endorsed ${skill} for ${mentee.fullName}`)
+      }
       else flash(j.message || 'Failed to endorse')
     } catch (err) { console.error(err); flash('Network error') }
+  }
+
+  const getEndorsementCount = (mentee, skill) => {
+    const item = (mentee.endorsements || []).find(e => String(e.skill || '').toLowerCase() === String(skill).toLowerCase())
+    return item?.count || 0
   }
 
   return (
@@ -59,16 +86,26 @@ export const AlumniEndorse = ({ onNavigate }) => {
             {loading && <div>Loading mentees…</div>}
             {!loading && mentees && mentees.length===0 && <div className="text-sm text-gray-500">No mentees available</div>}
             {!loading && mentees && mentees.map(m => (
-              <div key={m._id || m.id} className="flex items-center justify-between p-3 border rounded">
-                <div>
+              <div key={m._id || m.id} className="p-3 border rounded">
+                <div className="mb-3">
                   <p className="font-semibold">{m.fullName}</p>
-                  <p className="text-sm text-gray-600">Top skills: {(m.skills || ['Career']).slice(0,3).join(', ')}</p>
+                  <p className="text-sm text-gray-600">
+                    Skills uploaded: {(m.skills || []).length > 0 ? (m.skills || []).join(', ') : 'No skills uploaded yet'}
+                  </p>
                 </div>
-                <div className="flex gap-2">
-                  {(m.skills || ['Career']).slice(0,3).map((sk,i)=>(
-                    <button key={i} onClick={()=>endorse(m, sk)} className="px-3 py-1 bg-blue-600 text-white rounded">Endorse {sk}</button>
-                  ))}
-                </div>
+                {(m.skills || []).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {(m.skills || []).map((sk, i) => (
+                      <button
+                        key={`${m._id || m.id}-${sk}-${i}`}
+                        onClick={() => endorse(m, sk)}
+                        className="px-3 py-1 bg-blue-600 text-white rounded"
+                      >
+                        Endorse {sk} ({getEndorsementCount(m, sk)})
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>

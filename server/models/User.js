@@ -55,9 +55,30 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null
   },
+  bio: {
+    type: String,
+    default: null
+  },
+  institution: {
+    type: String,
+    default: null,
+    trim: true
+  },
   skills: [{
     type: String
   }],
+  projects: [{
+    title: { type: String },
+    description: { type: String },
+    technologies: [{ type: String }],
+    link: { type: String, default: null },
+    createdAt: { type: Date, default: Date.now }
+  }],
+  resume: {
+    fileName: { type: String, default: null },
+    filePath: { type: String, default: null },
+    uploadedAt: { type: Date, default: null }
+  },
   visitors: [{
     viewerId: { type: String },
     viewerName: { type: String },
@@ -81,10 +102,21 @@ const userSchema = new mongoose.Schema({
     name: { type: String },
     description: { type: String },
     awardedAt: { type: Date, default: Date.now },
-    source: { type: String, default: null }
+    source: { type: String, default: null },
+    giverId: { type: String, default: null },
+    giverName: { type: String, default: null },
+    message: { type: String, default: null }
   }],
   sessions: { type: Number, default: 0 },
   avgRating: { type: Number, default: 0 },
+  ratingCount: { type: Number, default: 0 },
+  mentorRatings: [{
+    studentId: { type: String, required: true },
+    studentName: { type: String, default: null },
+    rating: { type: Number, min: 1, max: 5, required: true },
+    review: { type: String, default: '' },
+    updatedAt: { type: Date, default: Date.now }
+  }],
   lastActive: { type: Date, default: null },
   notes: [{ fromId: { type: String }, fromName: { type: String }, body: { type: String }, createdAt: { type: Date, default: Date.now } }],
   tasks: [{ title: { type: String }, due: { type: Date }, completed: { type: Boolean, default: false }, createdAt: { type: Date, default: Date.now } }],
@@ -93,7 +125,9 @@ const userSchema = new mongoose.Schema({
     fromName: { type: String },
     subject: { type: String },
     body: { type: String },
+    messageId: { type: String, default: null },
     read: { type: Boolean, default: false },
+    isRead: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now }
   }],
   settings: {
@@ -103,6 +137,14 @@ const userSchema = new mongoose.Schema({
   registrationDate: {
     type: Date,
     default: Date.now
+  },
+  passwordResetToken: {
+    type: String,
+    default: null
+  },
+  passwordResetExpires: {
+    type: Date,
+    default: null
   }
 });
 

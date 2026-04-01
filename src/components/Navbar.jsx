@@ -8,31 +8,94 @@ export const Navbar = ({ onNavigate }) => {
   const [unreadCount, setUnreadCount] = React.useState(0)
   const [user, setUser] = React.useState(null)
 
-  React.useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      setUser(JSON.parse(userData))
+  const syncUserFromStorage = React.useCallback(() => {
+    try {
+      const userData = localStorage.getItem('user')
+      setUser(userData ? JSON.parse(userData) : null)
+    } catch (_err) {
+      setUser(null)
     }
   }, [])
 
-  React.useEffect(() => {
-    if (!notifOpen) return;
-    const fetchNotifications = async () => {
+  const fetchNotifications = React.useCallback(async () => {
+    const token = localStorage.getItem('token')
+    if (!token) return []
+    try {
+      const res = await fetch('http://localhost:5000/api/notifications', { headers: { 'Authorization': `Bearer ${token}` } })
+      const j = await res.json()
+      if (j.success) {
+        const data = j.data || []
+        setNotifications(data)
+        setUnreadCount(data.filter((n) => !n.read).length)
+        return data
+      }
+      return []
+    } catch (err) {
+      console.error('Failed to fetch notifications', err)
+      return []
+    }
+  }, [])
+
+  const markVisibleNotificationsAsRead = React.useCallback(async (items = notifications) => {
+    const unreadItems = (items || []).filter((n) => !n.read)
+    if (unreadItems.length === 0) return
+
+    // optimistic update so badge count drops as soon as user opens notifications
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+    setUnreadCount(0)
+
+    try {
       const token = localStorage.getItem('token')
       if (!token) return
-      try {
-        const res = await fetch('http://localhost:5000/api/notifications', { headers: { 'Authorization': `Bearer ${token}` } })
-        const j = await res.json()
-        if (j.success) {
-          setNotifications(j.data || [])
-          setUnreadCount((j.data || []).filter((n) => !n.read).length)
-        }
-      } catch (err) {
-        console.error('Failed to fetch notifications', err)
-      }
+
+      await Promise.all(
+        unreadItems.map((n) =>
+          fetch(`http://localhost:5000/api/notifications/${n._id || n.id}`, {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ read: true })
+          })
+        )
+      )
+    } catch (err) {
+      console.error('Failed to mark notifications as read', err)
+      fetchNotifications()
     }
+  }, [notifications, fetchNotifications])
+
+  React.useEffect(() => {
+    syncUserFromStorage()
     fetchNotifications()
-  }, [notifOpen])
+  }, [fetchNotifications, syncUserFromStorage])
+
+  React.useEffect(() => {
+    const onUserUpdated = () => syncUserFromStorage()
+    const onStorage = () => syncUserFromStorage()
+    window.addEventListener('user-updated', onUserUpdated)
+    window.addEventListener('storage', onStorage)
+    return () => {
+      window.removeEventListener('user-updated', onUserUpdated)
+      window.removeEventListener('storage', onStorage)
+    }
+  }, [syncUserFromStorage])
+
+  // Auto-refresh notifications count every 10 seconds
+  React.useEffect(() => {
+    const interval = setInterval(fetchNotifications, 10000)
+    return () => clearInterval(interval)
+  }, [fetchNotifications])
+
+  React.useEffect(() => {
+    if (!notifOpen) return;
+    const hydrateAndMarkRead = async () => {
+      const items = await fetchNotifications()
+      await markVisibleNotificationsAsRead(items)
+    }
+    hydrateAndMarkRead()
+  }, [notifOpen, fetchNotifications, markVisibleNotificationsAsRead])
 
   const handleLogout = () => {
     localStorage.removeItem('user')
@@ -78,13 +141,14 @@ export const Navbar = ({ onNavigate }) => {
                               if (!token) return
                               await fetch(`http://localhost:5000/api/notifications/${n._id || n.id}`, { method: 'PUT', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ read: true }) })
                               setNotifications(prev => prev.map(x => x === n ? { ...x, read: true } : x))
-                              setUnreadCount(c => c-1)
+                              setUnreadCount(c => Math.max(0, c - 1))
                             }} className="text-xs text-blue-600">Mark read</button>}
                             <button onClick={async () => {
                               const token = localStorage.getItem('token')
                               if (!token) return
                               await fetch(`http://localhost:5000/api/notifications/${n._id || n.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } })
                               setNotifications(prev => prev.filter(x => x !== n))
+                              if (!n.read) setUnreadCount(c => Math.max(0, c - 1))
                             }} className="text-xs text-red-600">Delete</button>
                           </div>
                         </div>

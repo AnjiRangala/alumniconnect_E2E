@@ -13,7 +13,41 @@ body {
   @apply bg-gray-50;
 }
 
+button {
+  transition: transform 180ms ease, box-shadow 220ms ease, filter 220ms ease, background-color 220ms ease, color 220ms ease, border-color 220ms ease;
+  transform: translateY(0) scale(1);
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.18);
+  filter: saturate(1.03);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
 button:focus,
 button:focus-visible {
   outline: 4px auto -webkit-focus-ring-color;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+
+  button:hover:not(:disabled),
+  button:active:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+    filter: none;
+  }
 }

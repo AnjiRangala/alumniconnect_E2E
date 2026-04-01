@@ -91,6 +91,8 @@ export function LoginPage({ onNavigate }) {
               <Mail className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
                 type="email"
+                name="email"
+                autoComplete="username email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
@@ -106,6 +108,8 @@ export function LoginPage({ onNavigate }) {
               <Lock className="absolute left-3 top-3 text-gray-400" size={20} />
               <input
                 type={showPassword ? 'text' : 'password'}
+                name="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"

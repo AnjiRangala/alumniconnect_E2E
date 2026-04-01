@@ -1,23 +1,29 @@
 import React, { useEffect, useState } from 'react'
 import { Navbar } from '../components/Navbar.jsx'
 import { Footer } from '../components/Footer.jsx'
-import { InputModal } from '../components/InputModal.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api'
 
 export const AlumniMenteesDashboard = ({ onNavigate }) => {
   const [mentees, setMentees] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [selected, setSelected] = useState(null)
-  const [analytics, setAnalytics] = useState(null)
-  const [msgOpen, setMsgOpen] = useState(false)
-  const [msgBody, setMsgBody] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
-  const [showNoteModalFor, setShowNoteModalFor] = useState(null)
-  const [showTaskModalFor, setShowTaskModalFor] = useState(null)
   const [showProfileModal, setShowProfileModal] = useState(false)
   const [selectedStudentProfile, setSelectedStudentProfile] = useState(null)
   const [loadingStudentProfile, setLoadingStudentProfile] = useState(false)
+
+  const getLinkedInHref = (url) => {
+    if (!url) return null
+    const trimmed = String(url).trim()
+    const normalized = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`
+    try {
+      const parsed = new URL(normalized)
+      if (!parsed.hostname.toLowerCase().includes('linkedin.com')) return null
+      return parsed.toString()
+    } catch {
+      return null
+    }
+  }
 
   useEffect(() => { loadMentees() }, [])
 
@@ -48,6 +54,21 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
       const j = await res.json()
       if (j.success) {
         setSelectedStudentProfile(j.data)
+
+        if (token) {
+          try {
+            await fetch(`${API_BASE_URL}/auth/profile/view`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ targetUserId: j.data?._id || j.data?.id || studentId })
+            })
+          } catch (visitErr) {
+            console.error('Error recording profile visit', visitErr)
+          }
+        }
       } else {
         alert('Failed to load student profile')
         setShowProfileModal(false)
@@ -59,106 +80,6 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
     } finally {
       setLoadingStudentProfile(false)
     }
-  }
-
-  const openMessage = (student) => {
-    setSelected(student)
-    setMsgOpen(true)
-    setMsgBody('')
-  }
-
-  const sendMessage = async () => {
-    if (!selected) return
-    if (!msgBody.trim()) {
-      alert('Please enter a message')
-      return
-    }
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type':'application/json'
-        },
-        body: JSON.stringify({
-          targetUserId: selected._id || selected.id,
-          subject: 'Message from your mentor',
-          body: msgBody
-        })
-      })
-      const j = await res.json()
-      if (j.success) {
-        alert('Message sent successfully!')
-        setMsgOpen(false)
-        setMsgBody('')
-      }
-      else alert(j.message || 'Failed to send message')
-    } catch (err) {
-      console.error(err)
-      alert('Network error')
-    }
-  }
-
-  const scheduleSession = async (student) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/schedule`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ date: new Date().toISOString() }) })
-      const j = await res.json()
-      if (j.success) { alert(j.message || 'Scheduled'); loadMentees() }
-      else alert(j.message || 'Failed')
-    } catch (err) { console.error(err); alert('Network error') }
-  }
-
-  const addNote = async (student, note) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/note`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ body: note }) })
-      const j = await res.json()
-      if (j.success) { alert('Note added'); } else alert(j.message || 'Failed')
-    } catch (err) { console.error(err); alert('Network error') }
-  }
-
-  const assignTask = async (student, title) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/task`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json' }, body: JSON.stringify({ title }) })
-      const j = await res.json()
-      if (j.success) { alert('Task assigned'); } else alert(j.message || 'Failed')
-    } catch (err) { console.error(err); alert('Network error') }
-  }
-
-  const markComplete = async (student) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/complete`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type':'application/json' } })
-      const j = await res.json()
-      if (j.success) { alert(j.message || 'Marked complete'); loadMentees() } else alert(j.message || 'Failed')
-    } catch (err) { console.error(err); alert('Network error') }
-  }
-
-  const exportCSV = async (student) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/export`, { headers: { 'Authorization': `Bearer ${token}` } })
-      if (!res.ok) { alert('Failed to export'); return }
-      const text = await res.text()
-      const blob = new Blob([text], { type: 'text/csv' })
-      const url = URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `mentee-${student._id || student.id}.csv`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
-    } catch (err) { console.error(err); alert('Network error') }
   }
 
   const exportAllCSV = async () => {
@@ -180,43 +101,66 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
     URL.revokeObjectURL(url)
   }
 
-  const loadAnalytics = async (student) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) { alert('Please login'); return }
-      const res = await fetch(`${API_BASE_URL}/mentees/${student._id || student.id}/analytics`, { headers: { 'Authorization': `Bearer ${token}` } })
-      const j = await res.json()
-      if (j.success) setAnalytics(j.data)
-      else alert(j.message || 'Failed to load analytics')
-    } catch (err) { console.error(err); alert('Network error') }
+  const openMessagesDashboard = (student) => {
+    const payload = {
+      id: String(student?._id || student?.id || student?.idStr || ''),
+      name: student?.fullName || student?.studentName || student?.name || 'Student'
+    }
+    localStorage.setItem('alumniMessagesOpenContact', JSON.stringify(payload))
+    onNavigate('alumni-messages')
   }
 
+  const filteredMentees = (mentees || []).filter((m) => {
+    if (!searchTerm) return true
+    const q = searchTerm.toLowerCase()
+    return (m.fullName || m.name || '').toLowerCase().includes(q) || (m.focus || '').toLowerCase().includes(q)
+  })
+
+  const totalMentees = filteredMentees.length
+  const totalSessions = filteredMentees.reduce((acc, m) => acc + Number(m.sessions || 0), 0)
+  const avgProgress = totalMentees > 0
+    ? Math.round(filteredMentees.reduce((acc, m) => acc + Math.round((m.progress || ((m.sessions || 0) / (m.sessionsGoal || 10))) * 100), 0) / totalMentees)
+    : 0
+
   return (
-    <div className="min-h-screen flex flex-col bg-gray-50">
+    <div className="min-h-screen flex flex-col bg-gradient-to-b from-slate-50 via-blue-50 to-indigo-50">
       <Navbar onNavigate={onNavigate} />
       <main className="flex-1 max-w-6xl mx-auto w-full px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-bold">👨‍🎓 Students You're Mentoring</h1>
-            <p className="text-gray-600">Manage your mentees, review progress and interact with them.</p>
+        <section className="bg-gradient-to-r from-indigo-700 via-blue-700 to-cyan-600 rounded-2xl p-6 md:p-8 text-white shadow-lg mb-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <h1 className="text-2xl md:text-3xl font-bold">👨‍🎓 Students You're Mentoring</h1>
+              <p className="text-blue-100 mt-1">Track progress and chat with your mentees instantly.</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
+              <div className="bg-white/20 backdrop-blur rounded-xl px-4 py-3 text-center min-w-[110px]">
+                <p className="text-xl font-bold">{totalMentees}</p>
+                <p className="text-xs text-blue-100">Mentees</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur rounded-xl px-4 py-3 text-center min-w-[110px]">
+                <p className="text-xl font-bold">{totalSessions}</p>
+                <p className="text-xs text-blue-100">Sessions</p>
+              </div>
+              <div className="bg-white/20 backdrop-blur rounded-xl px-4 py-3 text-center min-w-[110px]">
+                <p className="text-xl font-bold">{avgProgress}%</p>
+                <p className="text-xs text-blue-100">Avg Progress</p>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-2 items-center">
-            <button onClick={() => onNavigate('alumni-dashboard')} className="px-3 py-2 bg-gray-100 rounded">← Back to Dashboard</button>
-            <button onClick={loadMentees} className="px-3 py-2 bg-blue-600 text-white rounded">Refresh</button>
-            <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search mentees" className="px-3 py-2 border rounded ml-2" />
-            <button onClick={() => exportAllCSV()} className="px-3 py-2 bg-gray-200 rounded ml-2">Export All CSV</button>
-          </div>
+        </section>
+
+        <div className="bg-white/80 backdrop-blur rounded-xl border border-blue-100 shadow-sm p-4 mb-6 flex flex-wrap gap-2 items-center">
+          <button onClick={() => onNavigate('alumni-dashboard')} className="px-3 py-2 bg-gray-100 rounded-lg hover:bg-gray-200">← Back to Dashboard</button>
+          <button onClick={loadMentees} className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Refresh</button>
+          <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search mentees" className="px-3 py-2 border rounded-lg min-w-[220px]" />
+          <button onClick={() => exportAllCSV()} className="px-3 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Export All CSV</button>
         </div>
 
         {loading && <p>Loading…</p>}
 
         {!loading && mentees && (
           <>
-            {mentees.filter(m=>{
-              if (!searchTerm) return true
-              const q = searchTerm.toLowerCase()
-              return (m.fullName||m.name||'').toLowerCase().includes(q) || (m.focus||'').toLowerCase().includes(q)
-            }).length === 0 ? (
+            {filteredMentees.length === 0 ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-8 text-center">
                 <div className="text-5xl mb-4">👨‍🎓</div>
                 <h3 className="text-xl font-semibold mb-2">No mentees found</h3>
@@ -232,12 +176,8 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {mentees.filter(m=>{
-                  if (!searchTerm) return true
-                  const q = searchTerm.toLowerCase()
-                  return (m.fullName||m.name||'').toLowerCase().includes(q) || (m.focus||'').toLowerCase().includes(q)
-                }).map((m) => (
-                  <div key={m._id || m.id || m.idStr} className="bg-white p-5 rounded-lg shadow-md hover:shadow-lg transition">
+                {filteredMentees.map((m) => (
+                  <div key={m._id || m.id || m.idStr} className="bg-white/90 backdrop-blur p-5 rounded-2xl border border-indigo-100 shadow-md hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
                         <h3 className="font-bold text-lg text-gray-800">{m.fullName || m.studentName || m.name}</h3>
@@ -263,7 +203,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
 
                     <div className="grid grid-cols-2 gap-2 mb-3">
                       <button
-                        onClick={() => openMessage(m)}
+                        onClick={() => openMessagesDashboard(m)}
                         className="px-3 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 flex items-center justify-center gap-1"
                       >
                         💬 Message
@@ -275,108 +215,11 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
                         👤 Profile
                       </button>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        onClick={() => scheduleSession(m)}
-                        className="px-3 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                      >
-                        📅 Schedule
-                      </button>
-                      <button
-                        onClick={() => setShowNoteModalFor(m)}
-                        className="px-3 py-2 bg-yellow-500 text-white rounded-lg text-sm hover:bg-yellow-600"
-                      >
-                        📝 Note
-                      </button>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-gray-200">
-                      <button
-                        onClick={() => setShowTaskModalFor(m)}
-                        className="w-full px-3 py-2 bg-purple-600 text-white rounded-lg text-sm hover:bg-purple-700"
-                      >
-                        ✅ Assign Task
-                      </button>
-                    </div>
                   </div>
                 ))}
               </div>
             )}
           </>
-        )}
-
-        {/* Message Modal */}
-        {msgOpen && selected && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-lg shadow-xl">
-              <div className="bg-gradient-to-r from-indigo-600 to-indigo-700 p-6 rounded-t-lg">
-                <h3 className="font-bold text-xl text-white">
-                  💬 Message {selected.fullName || selected.studentName}
-                </h3>
-                <p className="text-indigo-100 text-sm mt-1">
-                  Send a direct message to your mentee
-                </p>
-              </div>
-
-              <div className="p-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Your Message
-                </label>
-                <textarea
-                  value={msgBody}
-                  onChange={e=>setMsgBody(e.target.value)}
-                  placeholder="Type your message here..."
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-                  rows={6}
-                />
-                <p className="text-xs text-gray-500 mt-2">
-                  Your mentee will receive a notification about this message
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-3 px-6 pb-6">
-                <button
-                  onClick={()=>{setMsgOpen(false); setMsgBody('')}}
-                  className="px-5 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 font-medium"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={sendMessage}
-                  disabled={!msgBody.trim()}
-                  className="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed"
-                >
-                  Send Message
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Note Modal */}
-        {showNoteModalFor && (
-          <InputModal title={`Add note — ${(showNoteModalFor.fullName||showNoteModalFor.name||'mentee')}`} placeholder="Enter note" initial="" onCancel={()=>setShowNoteModalFor(null)} onSubmit={(v)=>{ addNote(showNoteModalFor, v); setShowNoteModalFor(null) }} />
-        )}
-
-        {/* Task Modal */}
-        {showTaskModalFor && (
-          <InputModal title={`Assign task — ${(showTaskModalFor.fullName||showTaskModalFor.name||'mentee')}`} placeholder="Task title" initial="" onCancel={()=>setShowTaskModalFor(null)} onSubmit={(v)=>{ assignTask(showTaskModalFor, v); setShowTaskModalFor(null) }} />
-        )}
-
-        {/* Analytics drawer */}
-        {analytics && (
-          <div className="fixed right-6 top-20 w-96 bg-white p-4 rounded shadow z-50">
-            <div className="flex justify-between items-start">
-              <h4 className="font-semibold">Analytics — {analytics.name}</h4>
-              <button onClick={()=>setAnalytics(null)} className="px-2 py-1 bg-gray-100 rounded">Close</button>
-            </div>
-            <div className="mt-3 text-sm text-gray-700">
-              <p>Sessions completed: {analytics.sessionsCompleted}</p>
-              <p>Average rating: {analytics.avgRating}</p>
-              <p>Last active: {analytics.lastActive}</p>
-            </div>
-          </div>
         )}
 
         {/* Student Profile Modal (Read-Only) */}
@@ -483,7 +326,7 @@ export const AlumniMenteesDashboard = ({ onNavigate }) => {
                           <div>
                             <label className="text-sm font-medium text-gray-600">LinkedIn</label>
                             <a
-                              href={selectedStudentProfile.linkedinUrl}
+                              href={getLinkedInHref(selectedStudentProfile.linkedinUrl) || '#'}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="block text-blue-600 hover:underline"

@@ -17,8 +17,10 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.563.0",
     "mongoose": "^8.0.3",
+    "nodemailer": "^8.0.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-easy-crop": "^5.5.6"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
