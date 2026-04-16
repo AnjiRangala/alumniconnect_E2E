@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { NavigationContext } from '../App.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -9,6 +10,8 @@ export function AlumniLoginPage({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const navContext = useContext(NavigationContext)
+  const getBackPage = navContext?.getBackPage || (() => 'landing')
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -47,7 +50,7 @@ export function AlumniLoginPage({ onNavigate }) {
         // Store user info and token in localStorage
         localStorage.setItem('token', result.data.token)
         localStorage.setItem('user', JSON.stringify(result.data.user))
-        onNavigate('alumni-dashboard')
+        onNavigate('alumni-dashboard', { replace: true })
       } else {
         if (response.status === 403) {
           setError('This is an alumni login. Please use the correct credentials for alumni.')
@@ -66,7 +69,7 @@ export function AlumniLoginPage({ onNavigate }) {
   return (
     <div className="min-h-screen bg-gradient-to-r from-purple-600 to-purple-800 flex items-center justify-center px-4">
       <button
-        onClick={() => onNavigate('landing')}
+        onClick={() => onNavigate(getBackPage(), { replace: true })}
         className="absolute top-6 left-6 text-white flex items-center gap-2 hover:bg-purple-700 px-4 py-2 rounded"
       >
         <ArrowLeft size={20} />

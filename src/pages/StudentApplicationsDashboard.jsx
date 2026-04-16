@@ -46,6 +46,9 @@ export const StudentApplicationsDashboard = ({ onNavigate }) => {
   const [applications, setApplications] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [withdrawTarget, setWithdrawTarget] = useState(null)
+  const [withdrawing, setWithdrawing] = useState(false)
+  const [message, setMessage] = useState(null)
 
   const fetchApplications = async () => {
     try {
@@ -77,6 +80,38 @@ export const StudentApplicationsDashboard = ({ onNavigate }) => {
     }
   }
 
+  const withdrawApplication = async () => {
+    if (!withdrawTarget) return
+
+    setWithdrawing(true)
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) {
+        setMessage({ type: 'error', text: 'Please login to withdraw an application' })
+        return
+      }
+
+      const response = await fetch(`${API_BASE_URL}/jobs/applications/${withdrawTarget.applicationId}/withdraw`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Application withdrawn successfully' })
+        setWithdrawTarget(null)
+        await fetchApplications()
+      } else {
+        setMessage({ type: 'error', text: result.message || 'Failed to withdraw application' })
+      }
+    } catch (err) {
+      console.error('Error withdrawing application', err)
+      setMessage({ type: 'error', text: 'Failed to withdraw application' })
+    } finally {
+      setWithdrawing(false)
+    }
+  }
+
   useEffect(() => {
     fetchApplications()
     const interval = setInterval(fetchApplications, 10000)
@@ -96,6 +131,12 @@ export const StudentApplicationsDashboard = ({ onNavigate }) => {
       <Navbar onNavigate={onNavigate} />
 
       <main className="flex-1 max-w-7xl mx-auto w-full px-4 py-8">
+        {message && (
+          <div className={`mb-6 p-4 rounded-lg font-semibold ${message.type === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
+            {message.text}
+          </div>
+        )}
+
         <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 rounded-lg mb-6">
           <button
             onClick={() => onNavigate('student-dashboard')}
@@ -161,12 +202,50 @@ export const StudentApplicationsDashboard = ({ onNavigate }) => {
                       <p className="text-xs text-gray-600 line-clamp-3"><span className="font-semibold">SOP:</span> {app.statementOfPurpose}</p>
                     )}
                   </div>
+
+                  {status !== 'accepted' && status !== 'rejected' && (
+                    <div className="mt-4 pt-3 border-t border-gray-100">
+                      <button
+                        onClick={() => setWithdrawTarget({ applicationId: app._id, jobTitle })}
+                        className="w-full px-4 py-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-semibold text-sm"
+                      >
+                        Withdraw Application
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             })}
           </div>
         )}
       </main>
+
+      {withdrawTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-800 mb-2">Withdraw Application?</h3>
+            <p className="text-sm text-gray-600 mb-5">
+              Are you sure you want to withdraw your application for <span className="font-semibold">{withdrawTarget.jobTitle}</span>?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setWithdrawTarget(null)}
+                className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 font-semibold"
+                disabled={withdrawing}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={withdrawApplication}
+                className="flex-1 px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 font-semibold disabled:bg-red-400"
+                disabled={withdrawing}
+              >
+                {withdrawing ? 'Withdrawing...' : 'Withdraw'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <Footer />
     </div>

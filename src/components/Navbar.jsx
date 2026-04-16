@@ -1,4 +1,5 @@
 import React from 'react'
+import { BrandLogo } from './BrandLogo.jsx'
 
 export const Navbar = ({ onNavigate }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false)
@@ -103,16 +104,13 @@ export const Navbar = ({ onNavigate }) => {
     if (onNavigate) onNavigate('landing')
   }
 
+  const isAlumni = String(user?.userType || '').toLowerCase() === 'alumni'
+
   return (
     <nav className="bg-white shadow-md">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
-          <button
-            onClick={() => onNavigate?.('landing')}
-            className="text-2xl font-bold text-blue-600 hover:text-blue-700"
-          >
-            AlumniConnect
-          </button>
+          <BrandLogo onClick={() => onNavigate?.('landing')} subtitle={isAlumni ? 'Alumni' : 'Student'} />
 
           <div className="hidden md:flex items-center gap-4">
           </div>

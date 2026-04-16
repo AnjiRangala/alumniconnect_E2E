@@ -1,4 +1,6 @@
-export const MentorCard = ({ name, role, company, skills, experience, industry, availability, matchPercentage, photo, onRequest }) => {
+import { Eye } from 'lucide-react';
+
+export const MentorCard = ({ name, role, company, skills, experience, industry, availability, matchPercentage, photo, onRequest, onViewProfile }) => {
   const roleText = String(role || '').trim();
   const companyText = String(company || '').trim();
   const showCompany = companyText && !roleText.toLowerCase().includes(companyText.toLowerCase());
@@ -55,12 +57,23 @@ export const MentorCard = ({ name, role, company, skills, experience, industry, 
           </div>
         )}
 
-        <button
-          onClick={onRequest}
-          className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition mt-auto font-semibold"
-        >
-          Request Mentor
-        </button>
+        <div className="mt-auto space-y-2">
+          {typeof onViewProfile === 'function' && (
+            <button
+              onClick={onViewProfile}
+              className="w-full inline-flex items-center justify-center gap-2 border border-blue-600 text-blue-600 py-2.5 rounded-lg hover:bg-blue-50 transition font-semibold"
+            >
+              <Eye size={16} />
+              View Full Profile
+            </button>
+          )}
+          <button
+            onClick={onRequest}
+            className="w-full bg-blue-600 text-white py-2.5 rounded-lg hover:bg-blue-700 transition font-semibold"
+          >
+            Request Mentor
+          </button>
+        </div>
       </div>
     </div>
   );

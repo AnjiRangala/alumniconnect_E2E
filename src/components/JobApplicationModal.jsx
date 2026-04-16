@@ -1,142 +1,23 @@
-import { X, Upload } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEmail = '' }) => {
+export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEmail = '', profileResume = null, onProfileResumeUpdated = null }) => {
   const [formData, setFormData] = useState({
     phoneNumber: '',
     resume: null,
     resumeFileName: '',
     statementOfPurpose: ''
   });
-  const [resumePreview, setResumePreview] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [currentResume, setCurrentResume] = useState(profileResume || null);
   const [error, setError] = useState(null);
-  const [userActivity, setUserActivity] = useState([]);
-  const [loadingActivity, setLoadingActivity] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      console.log('Modal opened, fetching activity...');
-      fetchUserActivity();
-    }
-  }, [isOpen]);
-
-  const fetchUserActivity = async () => {
-    setLoadingActivity(true);
-    setUserActivity([]); // Clear previous activities
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        console.log('No token found in localStorage');
-        setUserActivity([{
-          activity: '🔓 Please log in to see your activity',
-          date: 'Not logged in'
-        }]);
-        setLoadingActivity(false);
-        return;
-      }
-
-      console.log('🔍 Fetching user profile for activity with token...');
-      const response = await fetch(`${API_BASE_URL}/auth/profile?timestamp=${Date.now()}`, {
-        method: 'GET',
-        headers: { 
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        }
-      });
-      
-      console.log('📊 Response status:', response.status);
-      
-      if (!response.ok) {
-        throw new Error(`API returned status ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('✅ Full activity fetch result:', result);
-      
-      if (result.success && result.data) {
-        const activities = [];
-        const userData = result.data;
-        
-        console.log('👤 User data available:', {
-          skills: userData.skills?.length,
-          projects: userData.projects?.length,
-          badges: userData.badges?.length,
-          endorsements: userData.endorsements?.length,
-          email: userData.email
-        });
-        
-        // Add endorsements
-        if (userData.endorsements && userData.endorsements.length > 0) {
-          userData.endorsements.forEach(endorsement => {
-            activities.push({
-              activity: `🏆 Endorsed skill: ${endorsement.skill}`,
-              date: 'Recently'
-            });
-          });
-        }
-        
-        // Add projects
-        if (userData.projects && userData.projects.length > 0) {
-          userData.projects.slice(0, 3).forEach(project => {
-            const projectDate = project.createdAt ? new Date(project.createdAt).toLocaleDateString() : 'Recently';
-            activities.push({
-              activity: `💼 Created project: ${project.title}`,
-              date: projectDate
-            });
-          });
-        }
-        
-        // Add badges
-        if (userData.badges && userData.badges.length > 0) {
-          userData.badges.slice(0, 2).forEach(badge => {
-            const badgeDate = badge.awardedAt ? new Date(badge.awardedAt).toLocaleDateString() : 'Recently';
-            activities.push({
-              activity: `🎖️ Earned badge: ${badge.name}`,
-              date: badgeDate
-            });
-          });
-        }
-        
-        // Add skills summary
-        if (userData.skills && userData.skills.length > 0) {
-          const skillsText = userData.skills.slice(0, 3).join(', ');
-          activities.push({
-            activity: `⚙️ Has ${userData.skills.length} skills: ${skillsText}${userData.skills.length > 3 ? '...' : ''}`,
-            date: 'Updated'
-          });
-        }
-        
-        // If no activities, show registration
-        if (activities.length === 0) {
-          activities.push({
-            activity: '🌟 Profile created',
-            date: userData.registrationDate ? new Date(userData.registrationDate).toLocaleDateString() : 'Recently'
-          });
-        }
-        
-        console.log('📋 Final activities to display:', activities);
-        setUserActivity(activities.slice(0, 5));
-      } else {
-        console.log('❌ Result not successful or no data:', result);
-        setUserActivity([{
-          activity: '⚠️ Could not fetch activity data',
-          date: 'Error'
-        }]);
-      }
-    } catch (error) {
-      console.error('🔴 Error fetching user activity:', error);
-      setUserActivity([{
-        activity: '⚠️ Error loading activity - ' + error.message,
-        date: 'Error'
-      }]);
-    } finally {
-      setLoadingActivity(false);
-    }
-  };
+    setCurrentResume(profileResume || null);
+  }, [profileResume, isOpen]);
 
   if (!isOpen) return null;
 
@@ -156,35 +37,86 @@ export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEma
     setError(null);
   };
 
-  const handleResumeChange = (e) => {
+  const handleResumeChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
-    const validTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!validTypes.includes(file.type)) {
-      setError('Please upload a PDF or Word document');
+    const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      setError('Only PDF resumes are allowed');
+      e.target.value = '';
       return;
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setError('File size must be less than 5MB');
+    const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_RESUME_SIZE_BYTES) {
+      setError('Resume must be 5 MB or smaller');
+      e.target.value = '';
       return;
     }
 
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData({
-        ...formData,
-        resume: reader.result,
-        resumeFileName: file.name
+    setError(null);
+    setIsUploadingResume(true);
+
+    try {
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const dataUrl = String(event?.target?.result || '');
+          const extracted = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+          if (!extracted) {
+            reject(new Error('Invalid resume data'));
+            return;
+          }
+          resolve(extracted);
+        };
+        reader.onerror = () => reject(new Error('Unable to read selected file'));
+        reader.readAsDataURL(file);
       });
-      setResumePreview(file.name);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Please login again to update resume');
+      }
+
+      const uploadResponse = await fetch(`${API_BASE_URL}/profile/upload-resume`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          resumeBase64: base64,
+          fileName: file.name
+        })
+      });
+
+      const uploadResult = await uploadResponse.json();
+      if (!uploadResponse.ok || !uploadResult.success) {
+        throw new Error(uploadResult.message || 'Failed to update resume');
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        resume: base64,
+        resumeFileName: file.name
+      }));
+
+      const updatedResume = uploadResult?.data?.resume || {
+        fileName: file.name,
+        uploadedAt: new Date().toISOString()
+      };
+      setCurrentResume(updatedResume);
+
+      if (typeof onProfileResumeUpdated === 'function') {
+        onProfileResumeUpdated(updatedResume);
+      }
+    } catch (uploadErr) {
+      setError(uploadErr.message || 'Failed to update resume');
+    } finally {
+      setIsUploadingResume(false);
+      e.target.value = '';
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -196,8 +128,8 @@ export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEma
       return;
     }
 
-    if (!formData.resume) {
-      setError('Resume is required');
+    if (!currentResume?.fileName && !formData.resume) {
+      setError('Please upload your resume in Student Profile before applying');
       return;
     }
 
@@ -228,7 +160,6 @@ export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEma
         resumeFileName: '',
         statementOfPurpose: ''
       });
-      setResumePreview('');
     } catch (err) {
       setError(err.message || 'Failed to submit application');
     } finally {
@@ -286,34 +217,6 @@ export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEma
             </div>
           </div>
 
-          {/* User Activity Timeline - DYNAMIC SECTION */}
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-5 rounded-lg border-2 border-blue-300 shadow-md">
-            <h3 className="font-bold text-lg text-gray-800 mb-4">📅 Your Recent Activity (Live from Profile)</h3>
-            <div className="space-y-3">
-              {loadingActivity ? (
-                <div className="flex items-center gap-2">
-                  <div className="animate-spin h-4 w-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                  <p className="text-gray-700 font-semibold">Loading your activity...</p>
-                </div>
-              ) : userActivity.length > 0 ? (
-                userActivity.map((item, index) => (
-                  <div key={index} className="flex gap-3 pb-3 border-b border-blue-100 last:border-b-0">
-                    <div className="w-3 h-3 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full mt-1 flex-shrink-0 shadow-sm"></div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-gray-900">{item.activity}</p>
-                      <p className="text-gray-500 text-xs mt-1">📆 {item.date}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="bg-blue-100 border border-blue-300 rounded p-3">
-                  <p className="text-blue-900 font-medium text-sm">✨ No activity yet. Start by adding skills, projects, or endorsements to your profile!</p>
-                </div>
-              )}
-            </div>
-            <p className="text-xs text-gray-600 mt-3 italic">💡 Activity data is fetched live from your profile</p>
-          </div>
-
           {/* Phone Number */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -330,32 +233,42 @@ export const JobApplicationModal = ({ job, isOpen, onClose, onSubmit, studentEma
             <p className="text-xs text-gray-500 mt-1">We'll use this to contact you about your application</p>
           </div>
 
-          {/* Resume Upload */}
+          {/* Resume from profile */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-2">
-              Upload Resume *
+              Resume *
             </label>
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-blue-500 transition">
-              <input
-                type="file"
-                id="resume-upload"
-                accept=".pdf,.doc,.docx"
-                onChange={handleResumeChange}
-                className="hidden"
-              />
-              <label htmlFor="resume-upload" className="cursor-pointer">
-                <Upload className="mx-auto mb-2 text-gray-400" size={32} />
-                <p className="text-gray-700 font-semibold">
-                  {resumePreview ? (
-                    <span className="text-green-600">✓ {resumePreview}</span>
-                  ) : (
-                    <>
-                      Click to upload or drag and drop<br />
-                      <span className="text-xs text-gray-500">(PDF, DOC, DOCX - Max 5MB)</span>
-                    </>
+            <div className="border border-gray-300 rounded-lg p-4 bg-gray-50">
+              {currentResume?.fileName ? (
+                <>
+                  <p className="text-sm font-semibold text-green-700">✓ Resume ready for application</p>
+                  <p className="text-sm text-gray-800 mt-1">{currentResume.fileName}</p>
+                  {currentResume.uploadedAt && (
+                    <p className="text-xs text-gray-500 mt-1">Uploaded: {new Date(currentResume.uploadedAt).toLocaleDateString()}</p>
                   )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-red-600">No resume found in your profile</p>
+                  <p className="text-xs text-gray-600 mt-1">Please upload a PDF resume in Student Profile (max 5 MB), then apply.</p>
+                </>
+              )}
+
+              <div className="mt-3 pt-3 border-t border-gray-200">
+                <label className="block text-xs font-semibold text-gray-700 mb-2">Replace with updated resume (PDF, max 5 MB)</label>
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  onChange={handleResumeChange}
+                  disabled={isUploadingResume || isSubmitting}
+                  className="w-full text-sm text-gray-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-2 file:text-blue-700 file:font-semibold hover:file:bg-blue-200"
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  {isUploadingResume
+                    ? 'Updating resume...'
+                    : 'The updated resume will be used for this application and visible in alumni job applications.'}
                 </p>
-              </label>
+              </div>
             </div>
           </div>
 

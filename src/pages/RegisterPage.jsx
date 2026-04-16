@@ -1,7 +1,16 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useContext } from 'react'
 import { Mail, Lock, User, Building, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { NavigationContext } from '../App.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api';
+const SECURITY_QUESTIONS = [
+  'What is your pet name?',
+  'What is your school best friend name?',
+  'What is your favorite teacher name?',
+  'What is your birth city?',
+  'What is your favorite food?'
+]
+
 const AP_COLLEGES_FALLBACK = [
   'Andhra University College of Engineering, Visakhapatnam',
   'JNTUA College of Engineering, Anantapur',
@@ -36,6 +45,8 @@ export function RegisterPage({ onNavigate }) {
     email: '',
     password: '',
     confirmPassword: '',
+    securityQuestion: '',
+    securityAnswer: '',
     company: '',
     availability: '',
     institution: '',
@@ -47,6 +58,8 @@ export function RegisterPage({ onNavigate }) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [loading, setLoading] = useState(false)
+  const navContext = useContext(NavigationContext)
+  const getBackPage = navContext?.getBackPage || (() => 'landing')
 
   useEffect(() => {
     const fetchColleges = async () => {
@@ -76,7 +89,7 @@ export function RegisterPage({ onNavigate }) {
     setLoading(true)
 
     // Validation
-    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword || !formData.institution) {
+    if (!formData.fullName || !formData.email || !formData.password || !formData.confirmPassword || !formData.institution || !formData.securityQuestion || !formData.securityAnswer) {
       setError('Please fill in all required fields')
       setLoading(false)
       return
@@ -126,6 +139,8 @@ export function RegisterPage({ onNavigate }) {
           company: formData.company || null,
           availability: userType === 'alumni' ? formData.availability : null,
           institution: formData.institution,
+          securityQuestion: formData.securityQuestion,
+          securityAnswer: formData.securityAnswer,
           skills: formData.skills
         })
       })
@@ -156,7 +171,7 @@ export function RegisterPage({ onNavigate }) {
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-600 to-blue-800 py-12 px-4">
       <button
-        onClick={() => onNavigate('landing')}
+        onClick={() => onNavigate(getBackPage(), { replace: true })}
         className="mb-6 text-white flex items-center gap-2 hover:bg-blue-700 px-4 py-2 rounded max-w-4xl mx-auto"
       >
         <ArrowLeft size={20} />
@@ -353,6 +368,34 @@ export function RegisterPage({ onNavigate }) {
                 {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Security Question *</label>
+            <select
+              name="securityQuestion"
+              value={formData.securityQuestion}
+              onChange={handleInputChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            >
+              <option value="">Select a security question</option>
+              {SECURITY_QUESTIONS.map((question) => (
+                <option key={question} value={question}>{question}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-gray-700 font-semibold mb-2">Security Answer *</label>
+            <input
+              type="text"
+              name="securityAnswer"
+              value={formData.securityAnswer}
+              onChange={handleInputChange}
+              placeholder="Enter your answer"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-600"
+            />
+            <p className="text-xs text-gray-500 mt-1">Remember this answer exactly. You need it if you forget your password.</p>
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer">

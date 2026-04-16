@@ -114,13 +114,33 @@ const waitForMongoReady = async (timeoutMs = 2500) => {
 };
 
 app.use(cors());
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '8mb' }));
+app.use((err, req, res, next) => {
+  if (!err) return next();
+
+  if (err.type === 'entity.too.large') {
+    return res.status(413).json({
+      success: false,
+      message: 'Payload too large. Resume must be 5 MB or smaller.'
+    });
+  }
+
+  if (err instanceof SyntaxError && 'body' in err) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid JSON payload'
+    });
+  }
+
+  return next(err);
+});
 
 // Connect to MongoDB
 if (MONGODB_URI) {
   mongoose.connect(MONGODB_URI)
-    .then(() => {
+    .then(async () => {
       console.log('✅ Connected to MongoDB');
+      await ensureLegacyUsersSecurityDefaults();
     })
     .catch((err) => {
       console.error('❌ MongoDB connection error:', err.message);
@@ -263,112 +283,10 @@ let defaultMentorSeedInProgress = false;
 let defaultEventSeedInProgress = false;
 const RECENT_LOGIN_LIMIT = 8;
 const DEFAULT_ALUMNI_PASSWORD = '@ASdk2619';
+const DEFAULT_LEGACY_SECURITY_QUESTION = 'What is your petname?';
+const DEFAULT_LEGACY_SECURITY_ANSWER = 'luna';
 
 const buildDefaultAlumniMentors = () => ([
-  {
-    fullName: 'Ananya Reddy',
-    email: 'ananya2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'TechNova Labs',
-    role: 'Senior Frontend Engineer',
-    experience: '6 years',
-    industry: 'Technology',
-    availability: 'Weekends',
-    institution: 'Andhra University College of Engineering, Visakhapatnam',
-    skills: ['React', 'TypeScript', 'UI/UX', 'JavaScript']
-  },
-  {
-    fullName: 'Rohit Kumar',
-    email: 'rohit2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'CloudPeak Systems',
-    role: 'Backend Engineer',
-    experience: '7 years',
-    industry: 'Software',
-    availability: 'Evenings',
-    institution: 'JNTUK University College of Engineering, Kakinada',
-    skills: ['Node.js', 'Express', 'MongoDB', 'REST API']
-  },
-  {
-    fullName: 'Sanjana Rao',
-    email: 'sanjana2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'DataRiver Analytics',
-    role: 'Data Scientist',
-    experience: '5 years',
-    industry: 'Data & AI',
-    availability: 'Weekdays',
-    institution: 'SVU College of Engineering, Tirupati',
-    skills: ['Python', 'Machine Learning', 'SQL', 'Data Science']
-  },
-  {
-    fullName: 'Karthik Varma',
-    email: 'karthik2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'InfraNest Technologies',
-    role: 'DevOps Engineer',
-    experience: '8 years',
-    industry: 'Cloud Infrastructure',
-    availability: 'Flexible',
-    institution: 'VR Siddhartha Engineering College, Vijayawada',
-    skills: ['DevOps', 'AWS', 'Docker', 'Kubernetes']
-  },
-  {
-    fullName: 'Meghana Iyer',
-    email: 'meghana2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'FinEdge Software',
-    role: 'Java Developer',
-    experience: '6 years',
-    industry: 'Fintech',
-    availability: 'Weekends',
-    institution: 'RVR & JC College of Engineering, Guntur',
-    skills: ['Java', 'Spring Boot', 'Microservices', 'SQL']
-  },
-  {
-    fullName: 'Nikhil Chandra',
-    email: 'nikhil2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'PixelForge Studio',
-    role: 'Product Designer',
-    experience: '4 years',
-    industry: 'Design',
-    availability: 'Evenings',
-    institution: 'GMR Institute of Technology, Rajam',
-    skills: ['UI/UX', 'Figma', 'Design Systems', 'Prototyping']
-  },
-  {
-    fullName: 'Priyanka Das',
-    email: 'priyanka2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'SkyBridge Cloud',
-    role: 'Cloud Solutions Architect',
-    experience: '9 years',
-    industry: 'Cloud',
-    availability: 'Weekdays',
-    institution: 'K L University, Guntur',
-    skills: ['AWS', 'Networking', 'Linux', 'Security']
-  },
-  {
-    fullName: 'Arun Teja',
-    email: 'arun2619@alumniconnect.com',
-    password: DEFAULT_ALUMNI_PASSWORD,
-    userType: 'alumni',
-    company: 'InsightGrid',
-    role: 'Analytics Manager',
-    experience: '10 years',
-    industry: 'Analytics',
-    availability: 'Flexible',
-    institution: 'Vignan\'s Foundation for Science, Technology & Research, Guntur',
-    skills: ['Power BI', 'Data Analysis', 'SQL', 'Excel']
-  },
   {
     fullName: 'Sai Kiran',
     email: 'saikiran2619@alumniconnect.com',
@@ -394,6 +312,45 @@ const buildDefaultAlumniMentors = () => ([
     availability: 'Evenings',
     institution: 'Vasireddy Venkatadri Institute of Technology, Guntur',
     skills: ['Python', 'Data Science', 'SQL', 'AWS']
+  },
+  {
+    fullName: 'Harsha Vardhan',
+    email: 'harsha2619@alumniconnect.com',
+    password: DEFAULT_ALUMNI_PASSWORD,
+    userType: 'alumni',
+    company: 'CloudPeak Systems',
+    role: 'Cloud Architect',
+    experience: '8 years',
+    industry: 'Cloud',
+    availability: 'Flexible',
+    institution: 'Vasireddy Venkatadri Institute of Technology, Guntur',
+    skills: ['AWS', 'DevOps', 'Architecture', 'Linux']
+  },
+  {
+    fullName: 'Ravada Srinivas',
+    email: 'ravada2619@alumniconnect.com',
+    password: DEFAULT_ALUMNI_PASSWORD,
+    userType: 'alumni',
+    company: 'NetworkFlow Inc',
+    role: 'Networking Specialist',
+    experience: '7 years',
+    industry: 'Infrastructure',
+    availability: 'Weekends',
+    institution: 'Vasireddy Venkatadri Institute of Technology, Guntur',
+    skills: ['Networking', 'Linux', 'Security', 'Infrastructure']
+  },
+  {
+    fullName: 'Dhanush Kumar',
+    email: 'dhanush2619@alumniconnect.com',
+    password: DEFAULT_ALUMNI_PASSWORD,
+    userType: 'alumni',
+    company: 'DesignFlow Studios',
+    role: 'UX/UI Designer',
+    experience: '6 years',
+    industry: 'Design',
+    availability: 'Flexible',
+    institution: 'Vasireddy Venkatadri Institute of Technology, Guntur',
+    skills: ['UI/UX', 'Figma', 'Design Systems', 'Prototyping']
   }
 ]);
 
@@ -448,7 +405,56 @@ const ensureDefaultMentorsSeeded = async () => {
   } catch (err) {
     console.error('Failed to seed default mentors:', err);
   } finally {
+    await ensureLegacyUsersSecurityDefaults();
     defaultMentorSeedInProgress = false;
+  }
+};
+
+const ensureLegacyUsersSecurityDefaults = async () => {
+  try {
+    const securityAnswerHash = await bcrypt.hash(DEFAULT_LEGACY_SECURITY_ANSWER, 10);
+
+    if (mongoose.connection.readyState === 1) {
+      const missingSecurityFilter = {
+        $or: [
+          { securityQuestion: { $exists: false } },
+          { securityQuestion: null },
+          { securityQuestion: '' },
+          { securityAnswerHash: { $exists: false } },
+          { securityAnswerHash: null },
+          { securityAnswerHash: '' }
+        ]
+      };
+
+      const result = await User.updateMany(
+        missingSecurityFilter,
+        {
+          $set: {
+            securityQuestion: DEFAULT_LEGACY_SECURITY_QUESTION,
+            securityAnswerHash
+          }
+        }
+      );
+
+      if (Number(result?.modifiedCount || 0) > 0) {
+        console.log(`✅ Applied default security question to ${result.modifiedCount} legacy user(s)`);
+      }
+    }
+
+    let updatedInMemory = 0;
+    for (const user of users) {
+      if (!user?.securityQuestion || !user?.securityAnswerHash) {
+        user.securityQuestion = DEFAULT_LEGACY_SECURITY_QUESTION;
+        user.securityAnswerHash = securityAnswerHash;
+        updatedInMemory += 1;
+      }
+    }
+
+    if (updatedInMemory > 0) {
+      console.log(`✅ Applied default security question to ${updatedInMemory} in-memory legacy user(s)`);
+    }
+  } catch (err) {
+    console.error('Error applying legacy security defaults:', err);
   }
 };
 
@@ -542,6 +548,76 @@ const buildDefaultEvents = (alumniUsers = []) => {
       status: 'completed',
       completedAt: makeDate(-10),
       tags: ['React', 'Performance', 'Webinar']
+    }),
+    eventFrom(mentorB, {
+      title: 'Mobile App Development with React Native',
+      description: 'Learn how to build cross-platform mobile apps using React Native with real-world examples.',
+      date: makeDate(18),
+      time: '08:00 PM',
+      location: 'Online (Google Meet)',
+      category: 'Workshop',
+      maxAttendees: 150,
+      tags: ['React Native', 'Mobile Development', 'JavaScript']
+    }),
+    eventFrom(mentorC, {
+      title: 'Kubernetes for Beginners',
+      description: 'Comprehensive introduction to Kubernetes including deployment, scaling, and management best practices.',
+      date: makeDate(21),
+      time: '09:00 AM',
+      location: 'VVIT Lab - Block C',
+      category: 'Workshop',
+      maxAttendees: 100,
+      tags: ['Kubernetes', 'DevOps', 'Docker']
+    }),
+    eventFrom(mentorD, {
+      title: 'Startup Founder Panel Discussion',
+      description: 'Hear from successful startup founders about their journey, challenges, and lessons learned.',
+      date: makeDate(24),
+      time: '04:00 PM',
+      location: 'VVIT Auditorium',
+      category: 'Networking',
+      maxAttendees: 300,
+      tags: ['Startups', 'Entrepreneurship', 'Career Growth']
+    }),
+    eventFrom(mentorE, {
+      title: 'Machine Learning Fundamentals',
+      description: 'Foundation course covering ML algorithms, model training, evaluation, and practical applications.',
+      date: makeDate(27),
+      time: '10:00 AM',
+      location: 'Online (YouTube Live)',
+      category: 'Workshop',
+      maxAttendees: 400,
+      tags: ['Machine Learning', 'Python', 'Data Science']
+    }),
+    eventFrom(mentorA, {
+      title: 'JavaScript Advanced Concepts',
+      description: 'Deep dive into closures, prototypes, async/await, and other advanced JavaScript patterns.',
+      date: makeDate(30),
+      time: '07:00 PM',
+      location: 'Online (Zoom)',
+      category: 'Webinar',
+      maxAttendees: 200,
+      tags: ['JavaScript', 'Advanced', 'Web Development']
+    }),
+    eventFrom(mentorB, {
+      title: 'Building APIs with Django',
+      description: 'Learn to build scalable REST APIs using Django and Django REST Framework.',
+      date: makeDate(33),
+      time: '11:00 AM',
+      location: 'Online (Google Meet)',
+      category: 'Workshop',
+      maxAttendees: 120,
+      tags: ['Django', 'Python', 'APIs']
+    }),
+    eventFrom(mentorC, {
+      title: 'AWS Solutions Architecture',
+      description: 'Comprehensive guide to designing highly available, scalable, and secure architectures on AWS.',
+      date: makeDate(36),
+      time: '08:00 PM',
+      location: 'Online (Teams)',
+      category: 'Conference',
+      maxAttendees: 250,
+      tags: ['AWS', 'Architecture', 'Cloud']
     })
   ].filter((event) => event.createdBy?.userId);
 };
@@ -723,7 +799,7 @@ const buildDefaultJobs = (alumniUsers = []) => {
     applicationCount: 0
   });
 
-  const mentorA = findAlumni('roshini2619@gmail.com', 0);
+  const mentorA = findAlumni('saikiran2619@alumniconnect.com', 0);
   const mentorB = findAlumni('harsha2619@alumniconnect.com', 1);
   const mentorC = findAlumni('saikiran2619@alumniconnect.com', 2);
   const mentorD = findAlumni('divya2619@alumniconnect.com', 3);
@@ -893,11 +969,95 @@ const buildDefaultJobs = (alumniUsers = []) => {
   ].filter((job) => job.postedBy);
 };
 
+let legacySeedCleanupDone = false;
+const cleanupLegacySeedCreators = async () => {
+  if (legacySeedCleanupDone) return;
+  legacySeedCleanupDone = true;
+
+  try {
+    if (mongoose.connection.readyState !== 1) return;
+
+    const canonicalMentor = await User.findOne({
+      userType: 'alumni',
+      email: 'saikiran2619@alumniconnect.com'
+    }).select('_id fullName email').lean();
+
+    if (!canonicalMentor) return;
+
+    await Promise.all([
+      Event.updateMany(
+        {
+          $or: [
+            { 'createdBy.userEmail': /roshini/i },
+            { 'createdBy.userName': /roshini/i }
+          ]
+        },
+        {
+          $set: {
+            'createdBy.userId': canonicalMentor._id,
+            'createdBy.userName': canonicalMentor.fullName,
+            'createdBy.userEmail': canonicalMentor.email
+          }
+        }
+      ),
+      Job.updateMany(
+        {
+          $or: [
+            { postedByName: /roshini/i },
+            { postedByEmail: /roshini/i }
+          ]
+        },
+        {
+          $set: {
+            postedBy: canonicalMentor._id,
+            postedByName: canonicalMentor.fullName,
+            postedByEmail: canonicalMentor.email
+          }
+        }
+      )
+    ]);
+
+    if (Array.isArray(app.locals.events)) {
+      app.locals.events = app.locals.events.map((event) => {
+        const creatorName = String(event?.createdBy?.userName || '').toLowerCase();
+        const creatorEmail = String(event?.createdBy?.userEmail || '').toLowerCase();
+        if (!creatorName.includes('roshini') && !creatorEmail.includes('roshini')) return event;
+        return {
+          ...event,
+          createdBy: {
+            ...(event.createdBy || {}),
+            userId: canonicalMentor._id,
+            userName: canonicalMentor.fullName,
+            userEmail: canonicalMentor.email
+          }
+        };
+      });
+    }
+
+    if (Array.isArray(app.locals.jobs)) {
+      app.locals.jobs = app.locals.jobs.map((job) => {
+        const postedByName = String(job?.postedByName || '').toLowerCase();
+        const postedByEmail = String(job?.postedByEmail || '').toLowerCase();
+        if (!postedByName.includes('roshini') && !postedByEmail.includes('roshini')) return job;
+        return {
+          ...job,
+          postedBy: canonicalMentor._id,
+          postedByName: canonicalMentor.fullName,
+          postedByEmail: canonicalMentor.email
+        };
+      });
+    }
+  } catch (err) {
+    console.error('Failed to cleanup legacy seed creators:', err);
+  }
+};
+
 const ensureDefaultJobsSeeded = async () => {
   if (defaultJobSeedInProgress) return;
   defaultJobSeedInProgress = true;
 
   try {
+    await cleanupLegacySeedCreators();
     if (mongoose.connection.readyState === 1) {
       const alumniUsers = await User.find({ userType: 'alumni' }).select('_id fullName email').lean();
       const defaults = buildDefaultJobs(alumniUsers);
@@ -1041,13 +1201,19 @@ app.post('/api/events/send-demo-email', verifyToken, async (req, res) => {
 app.post('/api/auth/register', async (req, res) => {
   try {
     const mongoReady = await waitForMongoReady();
-    const { fullName, email, password, userType, company, skills, institution, availability } = req.body;
+    const { fullName, email, password, userType, company, skills, institution, availability, securityQuestion, securityAnswer } = req.body;
     const normalizedInstitution = resolveInstitutionName(String(institution || '').trim());
     const normalizedAvailability = String(availability || '').trim();
+    const normalizedSecurityQuestion = String(securityQuestion || '').trim();
+    const normalizedSecurityAnswer = String(securityAnswer || '').trim().toLowerCase();
 
     // Validation
     if (!fullName || !email || !password || !userType || !normalizedInstitution) {
       return res.status(400).json({ success: false, message: 'Missing required fields' });
+    }
+
+    if (!normalizedSecurityQuestion || !normalizedSecurityAnswer) {
+      return res.status(400).json({ success: false, message: 'Security question and answer are required' });
     }
 
     if (!AP_ENGINEERING_COLLEGES_NORMALIZED.has(normalizedInstitution.toLowerCase())) {
@@ -1073,6 +1239,7 @@ app.post('/api/auth/register', async (req, res) => {
     }
 
     let newUser;
+    const securityAnswerHash = await bcrypt.hash(normalizedSecurityAnswer, 10);
 
     if (mongoReady) {
       // Save to MongoDB
@@ -1084,6 +1251,8 @@ app.post('/api/auth/register', async (req, res) => {
         institution: normalizedInstitution,
         company: company || null,
         availability: String(userType).toLowerCase() === 'alumni' ? normalizedAvailability : null,
+        securityQuestion: normalizedSecurityQuestion,
+        securityAnswerHash,
         skills: skills ? skills.split(',').map(s => s.trim()) : []
       });
       await newUser.save();
@@ -1099,6 +1268,8 @@ app.post('/api/auth/register', async (req, res) => {
         institution: normalizedInstitution,
         company: company || null,
         availability: String(userType).toLowerCase() === 'alumni' ? normalizedAvailability : null,
+        securityQuestion: normalizedSecurityQuestion,
+        securityAnswerHash,
         skills: skills ? skills.split(',').map(s => s.trim()) : [],
         registrationDate: new Date().toISOString()
       };
@@ -1309,6 +1480,10 @@ app.get('/api/mentorship/my-requests', verifyToken, async (req, res) => {
     const studentId = req.userId;
     if (mongoose.connection.readyState === 1) {
       const list = await MentorshipRequest.find({ studentId }).sort({ createdAt: -1 }).lean();
+      const studentProfile = await User.findById(studentId).select('sessions').lean();
+      const sessionsCompleted = Number(studentProfile?.sessions || 0);
+      const sessionsGoal = 10;
+      const progressPercent = Math.min(100, Math.round((sessionsCompleted / sessionsGoal) * 100));
 
       const mentorIds = Array.from(new Set(
         (list || [])
@@ -1330,32 +1505,53 @@ app.get('/api/mentorship/my-requests', verifyToken, async (req, res) => {
           mr => String(mr.studentId || '') === String(studentId)
         );
 
+        const status = String(r.status || '').toLowerCase();
+        const isCompletedByStatus = status === 'completed';
+        const isCompletedByProgress = sessionsCompleted >= sessionsGoal;
+        const canRateMentor = (isCompletedByStatus || isCompletedByProgress) && !myRating;
+
         return {
           ...r,
           mentorName: mentor.fullName || r.mentorName || 'Mentor',
           mentorAvgRating: Number(mentor.avgRating || 0),
           mentorRatingCount: Number(mentor.ratingCount || 0),
           myMentorRating: myRating ? Number(myRating.rating || 0) : null,
-          myMentorReview: myRating?.review || ''
+          myMentorReview: myRating?.review || '',
+          mentorshipSessionsCompleted: sessionsCompleted,
+          mentorshipSessionsGoal: sessionsGoal,
+          mentorshipProgressPercent: progressPercent,
+          canRateMentor
         };
       });
 
       return res.json({ success:true, data: enriched });
     }
     const list = (app.locals.mentorshipRequests || []).filter(r => r.studentId === studentId);
+    const currentStudent = users.find(u => String(u._id || u.id) === String(studentId) || String(u.id) === String(studentId));
+    const sessionsCompleted = Number(currentStudent?.sessions || 0);
+    const sessionsGoal = 10;
+    const progressPercent = Math.min(100, Math.round((sessionsCompleted / sessionsGoal) * 100));
     const enriched = (list || []).map((r) => {
       const mentor = users.find(u => String(u._id || u.id) === String(r.mentorId || ''));
       if (!mentor) return r;
       const myRating = (mentor.mentorRatings || []).find(
         mr => String(mr.studentId || '') === String(studentId)
       );
+      const status = String(r.status || '').toLowerCase();
+      const isCompletedByStatus = status === 'completed';
+      const isCompletedByProgress = sessionsCompleted >= sessionsGoal;
+      const canRateMentor = (isCompletedByStatus || isCompletedByProgress) && !myRating;
       return {
         ...r,
         mentorName: mentor.fullName || r.mentorName || 'Mentor',
         mentorAvgRating: Number(mentor.avgRating || 0),
         mentorRatingCount: Number(mentor.ratingCount || 0),
         myMentorRating: myRating ? Number(myRating.rating || 0) : null,
-        myMentorReview: myRating?.review || ''
+        myMentorReview: myRating?.review || '',
+        mentorshipSessionsCompleted: sessionsCompleted,
+        mentorshipSessionsGoal: sessionsGoal,
+        mentorshipProgressPercent: progressPercent,
+        canRateMentor
       };
     });
     return res.json({ success:true, data: enriched });
@@ -1381,14 +1577,22 @@ const rateMentorHandler = async (req, res) => {
     }
 
     if (mongoose.connection.readyState === 1) {
-      const mentorship = await MentorshipRequest.findOne({
-        studentId,
-        mentorId: mentorIdString,
-        status: 'accepted'
-      }).lean();
+      const [completedMentorship, acceptedMentorship, studentProgress] = await Promise.all([
+        MentorshipRequest.findOne({ studentId, mentorId: mentorIdString, status: 'completed' }).lean(),
+        MentorshipRequest.findOne({ studentId, mentorId: mentorIdString, status: 'accepted' }).lean(),
+        User.findById(studentId).select('sessions').lean()
+      ]);
 
-      if (!mentorship) {
-        return res.status(403).json({ success: false, message: 'You can rate only your accepted mentor' });
+      const sessionsCompleted = Number(studentProgress?.sessions || 0);
+      const sessionsGoal = 10;
+      const completedByProgress = sessionsCompleted >= sessionsGoal;
+
+      if (!completedMentorship && !acceptedMentorship) {
+        return res.status(403).json({ success: false, message: 'You can rate only your mentor after mentorship is accepted/completed' });
+      }
+
+      if (!completedMentorship && !completedByProgress) {
+        return res.status(403).json({ success: false, message: 'Rating is enabled only after mentorship reaches 100% completion' });
       }
 
       if (!mongoose.Types.ObjectId.isValid(mentorIdString)) {
@@ -1407,6 +1611,10 @@ const rateMentorHandler = async (req, res) => {
       mentor.mentorRatings = mentor.mentorRatings || [];
       const existingIndex = mentor.mentorRatings.findIndex(r => String(r.studentId || '') === studentId);
 
+      if (existingIndex >= 0) {
+        return res.status(400).json({ success: false, message: 'You can rate this mentor only once' });
+      }
+
       const ratingPayload = {
         studentId,
         studentName: student?.fullName || 'Student',
@@ -1415,11 +1623,7 @@ const rateMentorHandler = async (req, res) => {
         updatedAt: new Date()
       };
 
-      if (existingIndex >= 0) {
-        mentor.mentorRatings[existingIndex] = { ...mentor.mentorRatings[existingIndex], ...ratingPayload };
-      } else {
-        mentor.mentorRatings.push(ratingPayload);
-      }
+      mentor.mentorRatings.push(ratingPayload);
 
       const ratings = (mentor.mentorRatings || [])
         .map(r => Number(r.rating))
@@ -1454,14 +1658,29 @@ const rateMentorHandler = async (req, res) => {
       });
     }
 
-    const mentorship = (app.locals.mentorshipRequests || []).find(r =>
+    const completedMentorship = (app.locals.mentorshipRequests || []).find(r =>
+      String(r.studentId || '') === studentId &&
+      String(r.mentorId || '') === mentorIdString &&
+      String(r.status || '').toLowerCase() === 'completed'
+    );
+
+    const acceptedMentorship = (app.locals.mentorshipRequests || []).find(r =>
       String(r.studentId || '') === studentId &&
       String(r.mentorId || '') === mentorIdString &&
       String(r.status || '').toLowerCase() === 'accepted'
     );
 
-    if (!mentorship) {
-      return res.status(403).json({ success: false, message: 'You can rate only your accepted mentor' });
+    const studentProgress = users.find(u => String(u._id || u.id) === studentId || String(u.id) === studentId);
+    const sessionsCompleted = Number(studentProgress?.sessions || 0);
+    const sessionsGoal = 10;
+    const completedByProgress = sessionsCompleted >= sessionsGoal;
+
+    if (!completedMentorship && !acceptedMentorship) {
+      return res.status(403).json({ success: false, message: 'You can rate only your mentor after mentorship is accepted/completed' });
+    }
+
+    if (!completedMentorship && !completedByProgress) {
+      return res.status(403).json({ success: false, message: 'Rating is enabled only after mentorship reaches 100% completion' });
     }
 
     const mentor = users.find(u => String(u._id || u.id) === mentorIdString || String(u.id) === mentorIdString);
@@ -1473,6 +1692,9 @@ const rateMentorHandler = async (req, res) => {
 
     mentor.mentorRatings = mentor.mentorRatings || [];
     const existingIndex = mentor.mentorRatings.findIndex(r => String(r.studentId || '') === studentId);
+    if (existingIndex >= 0) {
+      return res.status(400).json({ success: false, message: 'You can rate this mentor only once' });
+    }
     const ratingPayload = {
       studentId,
       studentName: student?.fullName || 'Student',
@@ -1481,8 +1703,7 @@ const rateMentorHandler = async (req, res) => {
       updatedAt: new Date()
     };
 
-    if (existingIndex >= 0) mentor.mentorRatings[existingIndex] = { ...mentor.mentorRatings[existingIndex], ...ratingPayload };
-    else mentor.mentorRatings.push(ratingPayload);
+    mentor.mentorRatings.push(ratingPayload);
 
     const ratings = (mentor.mentorRatings || [])
       .map(r => Number(r.rating))
@@ -1519,7 +1740,7 @@ const rateMentorHandler = async (req, res) => {
   }
 };
 
-// POST /api/mentorship/rate-mentor - student rates an accepted mentor
+// POST /api/mentorship/rate-mentor - student rates a completed mentorship once
 app.post('/api/mentorship/rate-mentor', verifyToken, rateMentorHandler);
 
 // POST /api/mentorship/rate - compatibility alias
@@ -1906,18 +2127,27 @@ app.get('/api/mentees/:id/analytics', verifyToken, async (req, res) => {
   }
 })
 
-// PUT /api/mentorship/requests/:id/respond - accept/decline a request
+// PUT /api/mentorship/requests/:id/respond - accept/decline/complete a request
 app.put('/api/mentorship/requests/:id/respond', verifyToken, async (req, res) => {
   try {
     const { id } = req.params;
-    const { action, response } = req.body; // action: 'accept' | 'decline'
+    const { action, response } = req.body; // action: 'accept' | 'decline' | 'complete'
     const mentorId = req.userId;
-    if (!['accept','decline'].includes(action)) return res.status(400).json({ success:false, message: 'Invalid action' });
+    if (!['accept','decline','complete'].includes(action)) return res.status(400).json({ success:false, message: 'Invalid action' });
 
     if (mongoose.connection.readyState === 1) {
       const reqDoc = await MentorshipRequest.findById(id);
       if (!reqDoc) return res.status(404).json({ success:false, message: 'Request not found' });
-      reqDoc.status = action === 'accept' ? 'accepted' : 'declined';
+
+      if (String(reqDoc.mentorId || '') && String(reqDoc.mentorId || '') !== String(mentorId)) {
+        return res.status(403).json({ success:false, message: 'You are not authorized to update this request' });
+      }
+
+      if (action === 'complete' && String(reqDoc.status || '').toLowerCase() !== 'accepted') {
+        return res.status(400).json({ success:false, message: 'Only accepted mentorships can be marked as completed' });
+      }
+
+      reqDoc.status = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'completed';
       reqDoc.mentorId = mentorId;
       if (response) reqDoc.mentorResponse = response;
       await reqDoc.save();
@@ -1926,7 +2156,14 @@ app.put('/api/mentorship/requests/:id/respond', verifyToken, async (req, res) =>
       const student = await User.findById(reqDoc.studentId);
       if (student) {
         student.notifications = student.notifications || [];
-        student.notifications.push({ type: 'mentorship_response', message: `Your mentorship request was ${reqDoc.status}`, actorId: mentorId, createdAt: new Date() });
+        student.notifications.push({
+          type: 'mentorship_response',
+          message: action === 'complete'
+            ? 'Your mentorship has been marked as completed. You can now rate your mentor once.'
+            : `Your mentorship request was ${reqDoc.status}`,
+          actorId: mentorId,
+          createdAt: new Date()
+        });
         await student.save();
       }
 
@@ -1938,7 +2175,16 @@ app.put('/api/mentorship/requests/:id/respond', verifyToken, async (req, res) =>
     const list = app.locals.mentorshipRequests;
     const idx = list.findIndex(x=>x.id==id);
     if (idx === -1) return res.status(404).json({ success:false, message: 'Request not found' });
-    list[idx].status = action === 'accept' ? 'accepted' : 'declined';
+
+    if (String(list[idx].mentorId || '') && String(list[idx].mentorId || '') !== String(mentorId)) {
+      return res.status(403).json({ success:false, message: 'You are not authorized to update this request' });
+    }
+
+    if (action === 'complete' && String(list[idx].status || '').toLowerCase() !== 'accepted') {
+      return res.status(400).json({ success:false, message: 'Only accepted mentorships can be marked as completed' });
+    }
+
+    list[idx].status = action === 'accept' ? 'accepted' : action === 'decline' ? 'declined' : 'completed';
     list[idx].mentorId = mentorId;
     list[idx].mentorResponse = response || '';
     return res.json({ success:true, data: list[idx] });
@@ -2213,112 +2459,67 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     if (!user) {
-      // Don't reveal if email exists or not (security best practice)
-      return res.json({ success: true, message: 'If email exists, password reset link sent to your email' });
+      return res.status(404).json({ success: false, message: 'No account found with this email' });
     }
 
-    // Generate reset token (valid for 1 hour)
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    const resetTokenHash = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetExpires = new Date(Date.now() + 3600000); // 1 hour from now
-
-    if (mongoReady) {
-      await User.updateOne(
-        { _id: user._id },
-        {
-          $set: {
-            passwordResetToken: resetTokenHash,
-            passwordResetExpires: resetExpires
-          }
-        }
-      );
-    } else {
-      user.passwordResetToken = resetTokenHash;
-      user.passwordResetExpires = resetExpires;
-    }
-
-    // Send reset email
-    const resetLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/#/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
-    
-    const isDevLike = process.env.NODE_ENV !== 'production';
-
-    if (transporter) {
-      // Fire-and-forget to keep API fast
-      void transporter.sendMail({
-        from: EMAIL_USER,
-        to: email,
-        subject: 'AlumniConnect - Password Reset Request',
-        html: `
-          <h2>Password Reset Request</h2>
-          <p>You requested to reset your password. Click the link below to set a new password:</p>
-          <p><a href="${resetLink}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Reset Password</a></p>
-          <p>This link will expire in 1 hour.</p>
-          <p>If you didn't request this, please ignore this email.</p>
-          <p>Best regards,<br>AlumniConnect Team</p>
-        `
-      }).then(() => {
-        console.log(`✅ Password reset email sent to ${email}`);
-      }).catch((emailErr) => {
-        console.error('Error sending reset email:', emailErr.message);
-      });
-      return res.json({ success: true, message: 'If email exists, password reset link sent to your email' });
-    }
-
-    if (isDevLike) {
-      return res.json({
-        success: true,
-        message: 'Email service is unavailable. Use the reset link below for development.',
-        resetLink
+    const question = String(user.securityQuestion || '').trim();
+    if (!question || !user.securityAnswerHash) {
+      return res.status(400).json({
+        success: false,
+        message: 'Security question is not set for this account. Please contact support.'
       });
     }
 
-    res.json({ success: true, message: 'If email exists, password reset link sent to your email' });
+    return res.json({
+      success: true,
+      message: 'Security question retrieved',
+      data: {
+        email: email.toLowerCase().trim(),
+        securityQuestion: question
+      }
+    });
   } catch (err) {
     console.error('Forgot password error:', err);
     res.status(500).json({ success: false, message: 'Server error during password reset request' });
   }
 });
 
-// POST /api/auth/reset-password - Reset password with token
-app.post('/api/auth/reset-password', async (req, res) => {
+// POST /api/auth/reset-password-security - Reset password using security question answer
+app.post('/api/auth/reset-password-security', async (req, res) => {
   try {
     const mongoReady = await waitForMongoReady();
-    const { token, email, newPassword } = req.body;
+    const { email, securityAnswer, newPassword } = req.body;
 
-    if (!token || !email || !newPassword) {
-      return res.status(400).json({ success: false, message: 'Token, email, and new password are required' });
+    if (!email || !securityAnswer || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Email, security answer, and new password are required' });
     }
 
     if (newPassword.length < 6) {
       return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
     }
 
-    // Hash the token to compare with stored hash
-    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const normalizedEmail = String(email).toLowerCase().trim();
+    const normalizedAnswer = String(securityAnswer).trim().toLowerCase();
 
     let user = null;
     if (mongoReady) {
-      user = await User.findOne({
-        email: email.toLowerCase().trim(),
-        passwordResetToken: resetTokenHash,
-        passwordResetExpires: { $gt: new Date() } // Token must not be expired
-      });
+      user = await User.findOne({ email: normalizedEmail });
     } else {
-      user = users.find(u =>
-        u.email === email.toLowerCase().trim() &&
-        u.passwordResetToken === resetTokenHash &&
-        u.passwordResetExpires > new Date()
-      );
+      user = users.find(u => u.email === normalizedEmail);
     }
 
-    if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    if (!user || !user.securityAnswerHash) {
+      return res.status(400).json({ success: false, message: 'Invalid security answer' });
     }
 
-    // Update password
+    const isAnswerValid = await bcrypt.compare(normalizedAnswer, String(user.securityAnswerHash || ''));
+    if (!isAnswerValid) {
+      return res.status(400).json({ success: false, message: 'Invalid security answer' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
     if (mongoReady) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
       await User.updateOne(
         { _id: user._id },
         {
@@ -2330,17 +2531,24 @@ app.post('/api/auth/reset-password', async (req, res) => {
         }
       );
     } else {
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(newPassword, salt);
+      user.password = hashedPassword;
       user.passwordResetToken = null;
       user.passwordResetExpires = null;
     }
 
-    res.json({ success: true, message: 'Password reset successful. You can now login with your new password.' });
+    return res.json({ success: true, message: 'Password reset successful. You can now login with your new password.' });
   } catch (err) {
-    console.error('Reset password error:', err);
+    console.error('Security reset password error:', err);
     res.status(500).json({ success: false, message: 'Server error during password reset' });
   }
+});
+
+// POST /api/auth/reset-password - Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+  return res.status(410).json({
+    success: false,
+    message: 'Token reset is disabled. Please use security question based reset.'
+  });
 });
 
 // GET /api/auth/recent-logins - Get backend saved recent login credentials
@@ -2406,7 +2614,17 @@ app.get('/api/auth/settings', verifyToken, async (req, res) => {
       user = users.find(u => (u._id || u.id) === req.userId || u.id === parseInt(req.userId));
     }
     if (!user) return res.status(404).json({ success: false, message: 'User not found' });
-    res.json({ success: true, data: user.settings || { emailNotifications: true, profileVisibility: 'public' } });
+    res.json({
+      success: true,
+      data: user.settings || {
+        emailNotifications: true,
+        jobAlerts: true,
+        eventReminders: true,
+        mentorMatchAlerts: true,
+        profileTips: true,
+        profileVisibility: 'public'
+      }
+    });
   } catch (err) {
     console.error('Error fetching settings:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -2416,7 +2634,7 @@ app.get('/api/auth/settings', verifyToken, async (req, res) => {
 // PUT /api/auth/settings - Update authenticated user's settings
 app.put('/api/auth/settings', verifyToken, async (req, res) => {
   try {
-    const { emailNotifications, profileVisibility } = req.body;
+    const { emailNotifications, jobAlerts, eventReminders, mentorMatchAlerts, profileTips, profileVisibility } = req.body;
     let user = null;
 
     if (mongoose.connection.readyState === 1) {
@@ -2424,6 +2642,10 @@ app.put('/api/auth/settings', verifyToken, async (req, res) => {
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
       user.settings = user.settings || {};
       if (typeof emailNotifications === 'boolean') user.settings.emailNotifications = emailNotifications;
+      if (typeof jobAlerts === 'boolean') user.settings.jobAlerts = jobAlerts;
+      if (typeof eventReminders === 'boolean') user.settings.eventReminders = eventReminders;
+      if (typeof mentorMatchAlerts === 'boolean') user.settings.mentorMatchAlerts = mentorMatchAlerts;
+      if (typeof profileTips === 'boolean') user.settings.profileTips = profileTips;
       if (profileVisibility) user.settings.profileVisibility = profileVisibility;
       await user.save();
     } else {
@@ -2431,6 +2653,10 @@ app.put('/api/auth/settings', verifyToken, async (req, res) => {
       if (!user) return res.status(404).json({ success: false, message: 'User not found' });
       user.settings = user.settings || {};
       if (typeof emailNotifications === 'boolean') user.settings.emailNotifications = emailNotifications;
+      if (typeof jobAlerts === 'boolean') user.settings.jobAlerts = jobAlerts;
+      if (typeof eventReminders === 'boolean') user.settings.eventReminders = eventReminders;
+      if (typeof mentorMatchAlerts === 'boolean') user.settings.mentorMatchAlerts = mentorMatchAlerts;
+      if (typeof profileTips === 'boolean') user.settings.profileTips = profileTips;
       if (profileVisibility) user.settings.profileVisibility = profileVisibility;
     }
 
@@ -2510,13 +2736,31 @@ app.post('/api/profile/upload-resume', verifyToken, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Resume file and name required' });
     }
 
+    const normalizedFileName = String(fileName || '').trim();
+    const isPdf = normalizedFileName.toLowerCase().endsWith('.pdf');
+    if (!isPdf) {
+      return res.status(400).json({ success: false, message: 'Only PDF resumes are allowed' });
+    }
+
+    const rawBase64 = String(resumeBase64 || '').trim();
+    const normalizedBase64 = rawBase64.includes(',') ? rawBase64.split(',')[1] : rawBase64;
+    if (!normalizedBase64) {
+      return res.status(400).json({ success: false, message: 'Invalid resume data' });
+    }
+
+    const resumeBytes = Buffer.byteLength(normalizedBase64, 'base64');
+    const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024;
+    if (resumeBytes > MAX_RESUME_SIZE_BYTES) {
+      return res.status(400).json({ success: false, message: 'Resume must be 5 MB or smaller' });
+    }
+
     if (mongoose.connection.readyState === 1) {
       const user = await User.findByIdAndUpdate(
         req.userId,
         {
           resume: {
-            fileName,
-            filePath: `resumes/${req.userId}/${fileName}`,
+            fileName: normalizedFileName,
+            filePath: `resumes/${req.userId}/${normalizedFileName}`,
             uploadedAt: new Date()
           }
         },
@@ -2531,7 +2775,9 @@ app.post('/api/profile/upload-resume', verifyToken, async (req, res) => {
       if (!app.locals.resumeStorage) {
         app.locals.resumeStorage = {};
       }
-      app.locals.resumeStorage[`${req.userId}/${fileName}`] = resumeBase64;
+      // Save both current and legacy keys for backward compatibility.
+      app.locals.resumeStorage[`resumes/${req.userId}/${normalizedFileName}`] = normalizedBase64;
+      app.locals.resumeStorage[`${req.userId}/${normalizedFileName}`] = normalizedBase64;
 
       return res.json({ success: true, message: 'Resume uploaded successfully', data: user });
     }
@@ -2578,6 +2824,7 @@ app.post('/api/profile/upload-photo', verifyToken, async (req, res) => {
 
 const removeCurrentUserPhoto = async (req, res) => {
   try {
+    await cleanupLegacySeedCreators();
     if (mongoose.connection.readyState === 1) {
       const user = await User.findByIdAndUpdate(
         req.userId,
@@ -2643,7 +2890,13 @@ app.get('/api/profile/resume/:studentId', verifyToken, async (req, res) => {
       }
 
       // Get resume from storage
-      const resumeBase64 = app.locals.resumeStorage?.[student.resume.filePath];
+      const currentKey = student.resume.filePath;
+      const legacyKey = `${req.params.studentId}/${student.resume.fileName}`;
+      const storedResume = app.locals.resumeStorage?.[currentKey] || app.locals.resumeStorage?.[legacyKey];
+      const resumeBase64 = String(storedResume || '').includes(',')
+        ? String(storedResume).split(',')[1]
+        : storedResume;
+
       if (!resumeBase64) {
         return res.status(404).json({ success: false, message: 'Resume file not found' });
       }
@@ -2812,12 +3065,14 @@ app.post('/api/auth/profile/view', verifyToken, async (req, res) => {
     if (!viewer) return res.status(404).json({ success: false, message: 'Viewer not found' });
     if (!targetUser) return res.status(404).json({ success: false, message: 'Target user not found' });
 
-    // Only alumni visits to student profiles are tracked
-    if (viewer.userType !== 'alumni') {
-      return res.status(403).json({ success: false, message: 'Only alumni profile visits are tracked' });
-    }
-    if (targetUser.userType !== 'student') {
-      return res.status(400).json({ success: false, message: 'Only student profile visits are tracked' });
+    const viewerType = String(viewer.userType || '').toLowerCase();
+    const targetType = String(targetUser.userType || '').toLowerCase();
+    const isAllowedCrossTypeVisit =
+      (viewerType === 'student' && targetType === 'alumni') ||
+      (viewerType === 'alumni' && targetType === 'student');
+
+    if (!isAllowedCrossTypeVisit) {
+      return res.status(400).json({ success: false, message: 'Only student↔alumni profile visits are tracked' });
     }
 
     if (String(viewerId) === String(targetUserId)) {
@@ -3959,21 +4214,56 @@ app.delete('/api/notifications/:id', verifyToken, async (req, res) => {
   }
 });
 
-// GET all events - Events now fetched from database only
-app.get('/api/events', async (req, res) => {
+// GET all events - Filter by student's accepted mentors
+app.get('/api/events', verifyToken, async (req, res) => {
   try {
     await ensureDefaultEventsSeeded();
+    const userId = req.userId;
 
+    // Get student's accepted mentors only
+    let mentorIds = [];
     if (mongoose.connection.readyState === 1) {
-      // Fetch from MongoDB
-      const events = await Event.find({})
+      const acceptedMentorships = await MentorshipRequest.find({
+        studentId: userId,
+        status: 'accepted'
+      }).select('mentorId').lean();
+      
+      mentorIds = acceptedMentorships.map(m => String(m.mentorId));
+
+      // If no mentors, return empty array
+      if (mentorIds.length === 0) {
+        return res.json({ success: true, data: [] });
+      }
+
+      // Fetch events created by student's mentors
+      const events = await Event.find({
+        'createdBy.userId': { $in: mentorIds }
+      })
         .sort({ date: -1 })
         .lean();
       return res.json({ success: true, data: events });
     }
+
     // In-memory fallback
-    const events = app.locals.events || [];
-    return res.json({ success: true, data: events });
+    const mentorshipReqs = app.locals.mentorshipRequests || [];
+    const acceptedMentorships = mentorshipReqs.filter(m => 
+      String(m.studentId) === String(userId) && m.status === 'accepted'
+    );
+    
+    mentorIds = acceptedMentorships.map(m => m.mentorId);
+
+    if (mentorIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const events = (app.locals.events || []).filter(e => 
+      mentorIds.includes(String(e?.createdBy?.userId || ''))
+    );
+    return res.json({ success: true, data: events.sort((a, b) => {
+      const dateA = new Date(a.date || 0);
+      const dateB = new Date(b.date || 0);
+      return dateB - dateA;
+    })});
   } catch (err) {
     console.error('Error fetching events:', err);
     res.status(500).json({ success: false, message: 'Server error' });
@@ -4469,10 +4759,10 @@ app.post('/api/jobs/apply', verifyToken, async (req, res) => {
     }
 
     // Validate required fields
-    if (!phoneNumber || !resume || !statementOfPurpose) {
+    if (!phoneNumber || !statementOfPurpose) {
       return res.status(400).json({ 
         success: false, 
-        message: 'Phone number, resume, and statement of purpose are required' 
+        message: 'Phone number and statement of purpose are required' 
       });
     }
 
@@ -4497,6 +4787,39 @@ app.post('/api/jobs/apply', verifyToken, async (req, res) => {
         return res.status(404).json({ success: false, message: 'Student not found' });
       }
 
+      // Resolve resume to be stored with application:
+      // 1) explicit resume payload from client, OR
+      // 2) student profile resume uploaded earlier.
+      const normalizeBase64 = (input) => {
+        const raw = String(input || '').trim();
+        if (!raw) return null;
+        return raw.includes(',') ? raw.split(',')[1] : raw;
+      };
+
+      let finalResume = normalizeBase64(resume);
+      let finalResumeFileName = String(resumeFileName || '').trim();
+
+      if (!finalResume) {
+        const profileResumePath = student?.resume?.filePath;
+        const profileResumeName = student?.resume?.fileName;
+        const legacyResumePath = profileResumeName ? `${studentId}/${profileResumeName}` : null;
+        const fromStorage = (profileResumePath ? app.locals.resumeStorage?.[profileResumePath] : null)
+          || (legacyResumePath ? app.locals.resumeStorage?.[legacyResumePath] : null);
+        finalResume = normalizeBase64(fromStorage);
+        finalResumeFileName = finalResumeFileName || profileResumeName || 'resume.pdf';
+      }
+
+      if (!finalResume) {
+        return res.status(400).json({
+          success: false,
+          message: 'Please upload your resume in Student Profile before applying'
+        });
+      }
+
+      if (!finalResumeFileName) {
+        finalResumeFileName = student?.resume?.fileName || 'resume.pdf';
+      }
+
       // Check if already applied
       const existingApplication = await JobApplication.findOne({ jobId, studentId });
       if (existingApplication) {
@@ -4510,8 +4833,8 @@ app.post('/api/jobs/apply', verifyToken, async (req, res) => {
         studentName: student.fullName,
         studentEmail: student.email,
         phoneNumber,
-        resume,
-        resumeFileName,
+        resume: finalResume,
+        resumeFileName: finalResumeFileName,
         statementOfPurpose,
         status: 'applied'
       });
@@ -4666,10 +4989,13 @@ app.post('/api/jobs/applications/:applicationId/withdraw', verifyToken, async (r
       await JobApplication.findByIdAndDelete(applicationId);
 
       // Update job application count
-      const job = await Job.findById(application.jobId);
-      if (job) {
-        job.applicationCount = Math.max(0, (job.applicationCount || 1) - 1);
-        await job.save();
+      const jobIdValue = String(application.jobId || '').trim();
+      if (jobIdValue && mongoose.Types.ObjectId.isValid(jobIdValue)) {
+        const job = await Job.findById(jobIdValue);
+        if (job) {
+          job.applicationCount = Math.max(0, (job.applicationCount || 1) - 1);
+          await job.save();
+        }
       }
 
       return res.json({
@@ -4681,7 +5007,7 @@ app.post('/api/jobs/applications/:applicationId/withdraw', verifyToken, async (r
 
     // Fallback for in-memory storage
     app.locals.jobApplications = app.locals.jobApplications || [];
-    const appIndex = app.locals.jobApplications.findIndex(a => a._id === applicationId);
+    const appIndex = app.locals.jobApplications.findIndex(a => String(a._id || a.id || '') === String(applicationId));
     
     if (appIndex === -1) {
       return res.status(404).json({ success: false, message: 'Application not found' });
@@ -5064,6 +5390,60 @@ app.post('/api/events/:id/register', verifyToken, async (req, res) => {
     });
   } catch (err) {
     console.error('Error registering for event:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// POST /api/events/:id/unregister - Unregister from an event (students)
+app.post('/api/events/:id/unregister', verifyToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (mongoose.connection.readyState === 1) {
+      const event = await Event.findById(id);
+      if (!event) {
+        return res.status(404).json({ success: false, message: 'Event not found' });
+      }
+
+      // Find and remove the attendee
+      const initialLength = event.attendees.length;
+      event.attendees = event.attendees.filter(a => String(a.userId) !== String(userId));
+
+      if (event.attendees.length === initialLength) {
+        return res.status(400).json({ success: false, message: 'You are not registered for this event' });
+      }
+
+      await event.save();
+
+      return res.json({
+        success: true,
+        message: 'Successfully unregistered from the event',
+        data: event
+      });
+    }
+
+    // In-memory fallback
+    const allEvents = app.locals.events || [];
+    const event = allEvents.find(e => e.id === id);
+    if (!event) {
+      return res.status(404).json({ success: false, message: 'Event not found' });
+    }
+
+    const initialLength = event.attendees?.length || 0;
+    event.attendees = (event.attendees || []).filter(a => String(a.userId) !== String(userId));
+
+    if (event.attendees.length === initialLength) {
+      return res.status(400).json({ success: false, message: 'You are not registered for this event' });
+    }
+
+    return res.json({
+      success: true,
+      message: 'Successfully unregistered from the event',
+      data: event
+    });
+  } catch (err) {
+    console.error('Error unregistering from event:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });

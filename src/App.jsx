@@ -73,17 +73,50 @@ const getPageFromHash = () => {
 
 function App() {
   const [currentPage, setCurrentPage] = useState(getPageFromHash)
+  const replaceNextNavigation = React.useRef(false)
+  const pageHistoryRef = React.useRef([])
+  const currentPageRef = React.useRef(currentPage)
 
-  const navigate = (page) => {
+  useEffect(() => {
+    currentPageRef.current = currentPage
+  }, [currentPage])
+
+  const navigate = (page, options = {}) => {
     if (!VALID_PAGES.has(page)) return
+    replaceNextNavigation.current = !!options?.replace
+    
+    // Track history for back navigation
+    if (options?.replace) {
+      // Don't add to history if replacing
+    } else {
+      // Add current page to history before navigating away
+      if (pageHistoryRef.current[pageHistoryRef.current.length - 1] !== currentPage) {
+        pageHistoryRef.current.push(currentPage)
+      }
+    }
+    
     setCurrentPage(page)
+  }
+
+  // Expose getBackPage for components to use
+  const getBackPage = () => {
+    if (pageHistoryRef.current.length > 0) {
+      return pageHistoryRef.current[pageHistoryRef.current.length - 1]
+    }
+    return 'landing'
   }
 
   useEffect(() => {
     const hashPage = (window.location.hash || '').replace(/^#\/?/, '')
-    if (hashPage !== currentPage) {
-      window.location.hash = currentPage
+    const targetHash = `#/${currentPage}`
+    if (hashPage !== currentPage || window.location.hash !== targetHash) {
+      if (replaceNextNavigation.current) {
+        window.history.replaceState(null, '', targetHash)
+      } else {
+        window.location.hash = currentPage
+      }
     }
+    replaceNextNavigation.current = false
   }, [currentPage])
 
   useEffect(() => {
@@ -93,6 +126,36 @@ function App() {
   useEffect(() => {
     const onHashChange = () => {
       const page = getPageFromHash()
+      const activePage = currentPageRef.current
+      const isDashboardPage = activePage === 'student-dashboard' || activePage === 'alumni-dashboard'
+      const isBackToAuthOrLanding = new Set([
+        'landing',
+        'student-login',
+        'alumni-login',
+        'login',
+        'register',
+        'student-register',
+        'alumni-register',
+        'forgot-password',
+        'reset-password'
+      ]).has(page)
+
+      let hasSession = false
+      try {
+        const token = localStorage.getItem('token')
+        const rawUser = localStorage.getItem('user')
+        hasSession = !!token && !!rawUser
+      } catch (_err) {
+        hasSession = false
+      }
+
+      if (hasSession && isDashboardPage && isBackToAuthOrLanding) {
+        replaceNextNavigation.current = true
+        setCurrentPage(activePage)
+        window.history.replaceState(null, '', `#/${activePage}`)
+        return
+      }
+
       setCurrentPage(page)
     }
 
@@ -167,7 +230,11 @@ function App() {
     }
   }
 
-  return renderPage()
+  return (
+    <NavigationContext.Provider value={{ navigate, getBackPage }}>
+      {renderPage()}
+    </NavigationContext.Provider>
+  )
 }
 
 export default App

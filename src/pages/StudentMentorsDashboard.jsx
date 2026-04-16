@@ -1,5 +1,6 @@
 import { ArrowLeft, MessageCircle } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { BrandLogo } from '../components/BrandLogo.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api'
 
@@ -18,6 +19,31 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
   useEffect(() => {
     fetchMentors()
   }, [])
+
+  const getMentorshipProgressPercent = (mentor) => {
+    const direct = Number(mentor?.mentorshipProgressPercent)
+    if (Number.isFinite(direct)) return Math.max(0, Math.min(100, direct))
+
+    const sessions = Number(mentor?.mentorshipSessionsCompleted || 0)
+    const goal = Number(mentor?.mentorshipSessionsGoal || 10)
+    if (!Number.isFinite(goal) || goal <= 0) return 0
+    return Math.max(0, Math.min(100, Math.round((sessions / goal) * 100)))
+  }
+
+  const canRateMentorNow = (mentor) => {
+    if (Number(mentor?.myMentorRating || 0) > 0) return false
+    if (mentor?.canRateMentor) return true
+    return getMentorshipProgressPercent(mentor) >= 100
+  }
+
+  const isMentorshipCompletedForRating = (mentor) => {
+    const status = String(mentor?.status || '').toLowerCase()
+    return status === 'completed' || getMentorshipProgressPercent(mentor) >= 100 || !!mentor?.canRateMentor
+  }
+
+  const hasSubmittedRating = (mentor) => {
+    return Number(mentor?.myMentorRating || 0) > 0 && isMentorshipCompletedForRating(mentor)
+  }
 
   useEffect(() => {
     const intervalId = setInterval(fetchMentors, 8000)
@@ -48,7 +74,10 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
       })
       const result = await response.json()
       if (result.success) {
-        const activeMentors = (result.data || []).filter(r => r.status === 'accepted')
+        const activeMentors = (result.data || []).filter(r => {
+          const status = String(r.status || '').toLowerCase()
+          return status === 'accepted' || status === 'completed'
+        })
         setMentors(activeMentors)
       }
     } catch (err) {
@@ -67,10 +96,14 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
   }
 
   const openRatingModal = (mentor) => {
+    if (!canRateMentorNow(mentor)) {
+      return
+    }
+
     setRatingModal(mentor)
     setRatingForm({
-      rating: Number(mentor?.myMentorRating || 5),
-      review: String(mentor?.myMentorReview || '')
+      rating: 5,
+      review: ''
     })
     setRatingStatus(null)
   }
@@ -202,6 +235,12 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 via-blue-50 to-indigo-50">
+      <div className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="px-4 py-3 md:py-4">
+          <BrandLogo subtitle="Student" />
+        </div>
+      </div>
+
       <div className="bg-gradient-to-r from-indigo-700 via-blue-700 to-violet-700 text-white shadow-lg">
         <div className="max-w-6xl mx-auto px-4 py-6 md:py-8">
           <button
@@ -215,7 +254,7 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
           <div className="mt-4 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
             <div>
               <h1 className="text-3xl md:text-4xl font-bold">👥 My Mentors</h1>
-              <p className="text-blue-100 mt-2">Track your active mentorships, message mentors, and update ratings.</p>
+              <p className="text-blue-100 mt-2">Track mentorships, message active mentors, and rate once after completion.</p>
             </div>
             <div className="flex gap-3 flex-wrap">
               <div className="bg-white/15 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/20">
@@ -256,9 +295,17 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
                 <div className="flex items-start justify-between mb-4">
                   <div>
                     <h3 className="text-xl font-bold text-gray-800">{mentor.mentorName || 'Mentor'}</h3>
-                    <p className="text-sm text-gray-500">Active Mentorship</p>
+                    <p className="text-sm text-gray-500">
+                      {String(mentor.status || '').toLowerCase() === 'completed' ? 'Completed Mentorship' : 'Active Mentorship'}
+                    </p>
                   </div>
-                  <span className="text-xs bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full font-semibold">Accepted</span>
+                  <span className={`text-xs px-3 py-1 rounded-full font-semibold ${
+                    String(mentor.status || '').toLowerCase() === 'completed'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {String(mentor.status || '').toLowerCase() === 'completed' ? 'Completed' : 'Accepted'}
+                  </span>
                 </div>
 
                 {mentor.topic && (
@@ -270,7 +317,10 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
 
                 <div className="mt-4 text-xs text-gray-700 space-y-1.5 border-t border-gray-100 pt-3">
                   <p>⭐ Mentor Avg Rating: <span className="font-semibold">{Number(mentor.mentorAvgRating || 0).toFixed(1)}</span> ({mentor.mentorRatingCount || 0})</p>
-                  {mentor.myMentorRating ? (
+                  <p>
+                    📈 Mentorship Progress: <span className="font-semibold text-blue-700">{getMentorshipProgressPercent(mentor)}%</span>
+                  </p>
+                  {hasSubmittedRating(mentor) ? (
                     <p>Your Rating: <span className="font-semibold text-indigo-700">{mentor.myMentorRating}/5</span></p>
                   ) : (
                     <p>You have not rated this mentor yet.</p>
@@ -279,16 +329,22 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
 
                 <button
                   onClick={() => openMessageModal(mentor)}
-                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold"
+                  disabled={String(mentor.status || '').toLowerCase() !== 'accepted'}
+                  className="mt-4 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
                 >
                   <MessageCircle size={16} />
-                  Message Mentor
+                  {String(mentor.status || '').toLowerCase() === 'accepted' ? 'Message Mentor' : 'Mentorship Completed'}
                 </button>
                 <button
                   onClick={() => openRatingModal(mentor)}
-                  className="mt-2 w-full px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-semibold"
+                  disabled={hasSubmittedRating(mentor) || !canRateMentorNow(mentor)}
+                  className="mt-2 w-full px-4 py-2.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 text-sm font-semibold disabled:bg-gray-300 disabled:text-gray-600 disabled:cursor-not-allowed"
                 >
-                  {mentor.myMentorRating ? 'Update Rating' : 'Rate Mentor'}
+                  {hasSubmittedRating(mentor)
+                    ? 'Rating Submitted'
+                    : canRateMentorNow(mentor)
+                      ? 'Rate Mentor'
+                      : 'Reach 100% to rate'}
                 </button>
               </div>
             ))}
@@ -353,7 +409,7 @@ export const StudentMentorsDashboard = ({ onNavigate }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-xl font-bold mb-2">Rate {ratingModal.mentorName || 'Mentor'}</h2>
-            <p className="text-sm text-gray-600 mb-4">Share your mentorship feedback.</p>
+            <p className="text-sm text-gray-600 mb-4">Share your mentorship feedback. You can submit rating only once.</p>
 
             <div className="space-y-4">
               <div>

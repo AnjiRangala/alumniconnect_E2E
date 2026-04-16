@@ -18,6 +18,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  securityQuestion: {
+    type: String,
+    default: null,
+    trim: true
+  },
+  securityAnswerHash: {
+    type: String,
+    default: null
+  },
   userType: {
     type: String,
     enum: ['student', 'alumni'],
@@ -132,6 +141,10 @@ const userSchema = new mongoose.Schema({
   }],
   settings: {
     emailNotifications: { type: Boolean, default: true },
+    jobAlerts: { type: Boolean, default: true },
+    eventReminders: { type: Boolean, default: true },
+    mentorMatchAlerts: { type: Boolean, default: true },
+    profileTips: { type: Boolean, default: true },
     profileVisibility: { type: String, enum: ['public','connections','private'], default: 'public' }
   },
   registrationDate: {

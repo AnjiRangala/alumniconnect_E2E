@@ -1,4 +1,4 @@
-import { Navbar } from '../components/Navbar.jsx';
+import { BrandLogo } from '../components/BrandLogo.jsx';
 import { Footer } from '../components/Footer.jsx';
 import { JobApplicationModal } from '../components/JobApplicationModal.jsx';
 import { ArrowLeft } from 'lucide-react';
@@ -23,6 +23,7 @@ export const JobsPage = ({ onNavigate }) => {
   const [selectedJobForApplication, setSelectedJobForApplication] = useState(null);
   const [isApplicationModalOpen, setIsApplicationModalOpen] = useState(false);
   const [studentEmail, setStudentEmail] = useState('');
+  const [studentProfileResume, setStudentProfileResume] = useState(null);
 
   const allLocations = useMemo(() => {
     const defaults = ['Remote', 'Bengaluru', 'Hyderabad', 'Pune', 'Mumbai', 'Chennai', 'Delhi', 'Kochi'];
@@ -46,6 +47,29 @@ export const JobsPage = ({ onNavigate }) => {
     if (!raw) return '';
     // Some records were created from terminal with '?' replacing the rupee symbol.
     return raw.replace(/\?/g, '₹').replace(/\s{2,}/g, ' ');
+  };
+
+  const getSingleLineDescription = (description) => {
+    const cleaned = String(description || '')
+      .replace(/\s+/g, ' ')
+      .replace(/\s*(\.\.\.|…)\s*$/g, '')
+      .trim();
+
+    if (!cleaned) return 'No description provided.';
+
+    const sentenceParts = cleaned.split(/(?<=[.!?])\s+/).filter(Boolean);
+    const firstSentence = sentenceParts[0] || cleaned;
+    if (firstSentence.length <= 95) return firstSentence;
+
+    const words = cleaned.split(' ');
+    let concise = '';
+    for (const word of words) {
+      const next = concise ? `${concise} ${word}` : word;
+      if (next.length > 95) break;
+      concise = next;
+    }
+
+    return concise || cleaned.slice(0, 95);
   };
 
   const getApplicationJobId = (application) => {
@@ -236,12 +260,14 @@ export const JobsPage = ({ onNavigate }) => {
           const profileData = await profileResponse.json();
           if (profileData.success && profileData.data?.email) {
             setStudentEmail(profileData.data.email);
+            setStudentProfileResume(profileData.data.resume || null);
           } else {
             // Fallback to localStorage
             const user = localStorage.getItem('user');
             if (user) {
               const userData = JSON.parse(user);
               setStudentEmail(userData.email || '');
+              setStudentProfileResume(userData.resume || null);
             }
           }
         } catch (profileErr) {
@@ -250,6 +276,7 @@ export const JobsPage = ({ onNavigate }) => {
           if (user) {
             const userData = JSON.parse(user);
             setStudentEmail(userData.email || '');
+            setStudentProfileResume(userData.resume || null);
           }
         }
       } catch (err) {
@@ -356,16 +383,25 @@ export const JobsPage = ({ onNavigate }) => {
         body: JSON.stringify({
           jobId: selectedJobForApplication._id,
           phoneNumber: formData.phoneNumber,
-          resume: formData.resume,
-          resumeFileName: formData.resumeFileName,
+          resume: formData.resume || null,
+          resumeFileName: formData.resumeFileName || studentProfileResume?.fileName || '',
           statementOfPurpose: formData.statementOfPurpose
         })
       });
 
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const rawText = await response.text();
+        if (rawText?.startsWith('<!DOCTYPE')) {
+          throw new Error('Server returned HTML instead of JSON. Please ensure backend is running on port 5000.');
+        }
+        throw new Error('Invalid server response');
+      }
+
       const data = await response.json();
       console.log('✅ API Response:', data);
 
-      if (data.success) {
+      if (response.ok && data.success) {
         // Immediately add to myApplicationIds with proper ID format
         const newId = getJobId(selectedJobForApplication);
         const updatedIds = [...myApplicationIds, newId];
@@ -417,7 +453,11 @@ export const JobsPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar onNavigate={onNavigate} />
+      <div className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="px-4 py-3 md:py-4">
+          <BrandLogo subtitle="Student" />
+        </div>
+      </div>
 
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-800 text-white p-6 md:p-8">
@@ -606,7 +646,7 @@ export const JobsPage = ({ onNavigate }) => {
                     </div>
                   )}
 
-                  <p className="text-sm text-gray-700 mb-3 line-clamp-2">{job.description}</p>
+                  <p className="text-sm text-gray-700 mb-3 whitespace-normal break-words leading-6">{getSingleLineDescription(job.description)}</p>
                   
                   {hasApplied ? (
                     <div className="w-full py-2 rounded-lg text-sm font-semibold bg-green-100 text-green-700 text-center">
@@ -643,6 +683,17 @@ export const JobsPage = ({ onNavigate }) => {
           }}
           onSubmit={handleApplicationSubmit}
           studentEmail={studentEmail}
+          profileResume={studentProfileResume}
+          onProfileResumeUpdated={(updatedResume) => {
+            setStudentProfileResume(updatedResume || null)
+            try {
+              const raw = localStorage.getItem('user')
+              const parsed = raw ? JSON.parse(raw) : {}
+              localStorage.setItem('user', JSON.stringify({ ...parsed, resume: updatedResume || null }))
+            } catch {
+              // ignore localStorage parse/write errors
+            }
+          }}
         />
       )}
 

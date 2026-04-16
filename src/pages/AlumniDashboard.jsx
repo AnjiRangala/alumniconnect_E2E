@@ -8,6 +8,12 @@ import ImageCropModal from '../components/ImageCropModal.jsx'
 import AnnouncementModal from '../components/AnnouncementModal.jsx'
 
 export const AlumniDashboard = ({ onNavigate }) => {
+  useEffect(() => {
+    localStorage.removeItem('profileViewMode')
+    localStorage.removeItem('viewUserId')
+    localStorage.removeItem('profileBackPage')
+  }, [])
+
   const [showNotifications, setShowNotifications] = useState(false)
   const [showBadgeModal, setShowBadgeModal] = useState(false)
   const [showBadgeAwardModal, setShowBadgeAwardModal] = useState(false)

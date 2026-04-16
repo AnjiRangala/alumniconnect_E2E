@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import React from 'react'
-import { BarChart3, Users, Calendar, Briefcase, Settings, LogOut, UserPlus, CalendarCheck } from 'lucide-react';
+import { BarChart3, Users, Briefcase, Settings, LogOut, UserPlus, CalendarCheck } from 'lucide-react';
 import ImageCropModal from '../components/ImageCropModal.jsx';
+import { BrandLogo } from '../components/BrandLogo.jsx';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -618,6 +619,10 @@ export const StudentDashboard = ({ onNavigate }) => {
   }
 
   const handleLogout = () => {
+    localStorage.removeItem('profileViewMode')
+    localStorage.removeItem('viewUserId')
+    localStorage.removeItem('profileBackPage')
+    localStorage.removeItem('token')
     localStorage.removeItem('user')
     onNavigate('landing')
   }
@@ -632,7 +637,17 @@ export const StudentDashboard = ({ onNavigate }) => {
       if (!token) return
       const res = await fetch(`${API_BASE_URL}/auth/settings`, { headers: { 'Authorization': `Bearer ${token}` } })
       const j = await res.json()
-      if (j.success) setSettings(j.data)
+      if (j.success) {
+        setSettings({
+          emailNotifications: true,
+          jobAlerts: true,
+          eventReminders: true,
+          mentorMatchAlerts: true,
+          profileTips: true,
+          profileVisibility: 'public',
+          ...(j.data || {})
+        })
+      }
     } catch (err) { console.error('Error fetching settings', err) }
   }
 
@@ -670,15 +685,8 @@ export const StudentDashboard = ({ onNavigate }) => {
     {
       id: 'my-events',
       icon: <CalendarCheck size={24} />,
-      title: 'My Events',
-      description: 'See your registered events',
-      color: 'bg-purple-100 text-purple-600'
-    },
-    {
-      id: 'upcoming-events',
-      icon: <Calendar size={24} />,
-      title: 'Upcoming Events',
-      description: 'Attend webinars and networking events',
+      title: 'Events Hub',
+      description: 'Manage registered and upcoming events',
       color: 'bg-purple-100 text-purple-600'
     },
     {
@@ -705,7 +713,7 @@ export const StudentDashboard = ({ onNavigate }) => {
   ]
 
   const featuredItems = dashboardItems.filter(item =>
-    item.id === 'find-mentor' || item.id === 'upcoming-events'
+    item.id === 'find-mentor' || item.id === 'my-events'
   )
 
   const effectiveSkills = profileData?.skills || user?.skills || []
@@ -734,15 +742,7 @@ export const StudentDashboard = ({ onNavigate }) => {
       <div className="w-64 bg-white shadow-lg relative">
         {/* Logo */}
         <div className="p-6 border-b">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold">A</span>
-            </div>
-            <div>
-              <h1 className="font-bold text-gray-800">AlumniConnect</h1>
-              <p className="text-xs text-gray-600">Student</p>
-            </div>
-          </div>
+          <BrandLogo subtitle="Student" />
         </div>
 
         {/* Navigation */}
@@ -757,8 +757,6 @@ export const StudentDashboard = ({ onNavigate }) => {
                   onNavigate('student-mentors')
                 } else if (item.id === 'my-events') {
                   onNavigate('student-events')
-                } else if (item.id === 'upcoming-events') {
-                  onNavigate('events')
                 } else if (item.id === 'jobs') {
                   onNavigate('jobs')
                 } else if (item.id === 'profile') {
@@ -894,29 +892,45 @@ export const StudentDashboard = ({ onNavigate }) => {
 
         {/* Settings Modal */}
         {settingsOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold mb-4">Settings</h3>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Email Notifications</p>
-                    <p className="text-xs text-gray-500">Receive emails for important updates</p>
-                  </div>
-                  <input type="checkbox" checked={settings?.emailNotifications} onChange={e=>setSettings({...settings, emailNotifications: e.target.checked})} />
-                </div>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-2xl p-6 w-full max-w-2xl shadow-2xl max-h-[90vh] overflow-y-auto">
+              <div className="flex items-start justify-between gap-4 mb-5">
                 <div>
-                  <p className="font-medium">Profile Visibility</p>
-                  <select value={settings?.profileVisibility} onChange={e=>setSettings({...settings, profileVisibility: e.target.value})} className="w-full mt-2 p-2 border rounded">
-                    <option value="public">Public (anyone can view)</option>
-                    <option value="connections">Connections only</option>
-                    <option value="private">Private (only you)</option>
-                  </select>
+                  <h3 className="text-xl font-bold text-gray-900">Settings & Profile Tools</h3>
+                  <p className="text-sm text-gray-500 mt-1">Make your student profile more useful and dynamic.</p>
+                </div>
+                <button onClick={()=>setSettingsOpen(false)} className="text-gray-500 hover:text-gray-700 text-2xl leading-none">×</button>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">🔔 Notifications</h4>
+                <div className="space-y-3">
+                  {[
+                    { key: 'emailNotifications', title: 'Email notifications', desc: 'Receive important emails and alerts' },
+                    { key: 'jobAlerts', title: 'Job alerts', desc: 'Get notified about new job openings' },
+                    { key: 'eventReminders', title: 'Event reminders', desc: 'Stay updated about upcoming events' },
+                    { key: 'mentorMatchAlerts', title: 'Mentor match alerts', desc: 'Know when a mentor accepts your request' },
+                    { key: 'profileTips', title: 'Profile tips', desc: 'Receive suggestions to improve your profile' }
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between gap-3 bg-white rounded-lg p-3 border border-blue-100">
+                      <div>
+                        <p className="font-medium text-gray-800">{item.title}</p>
+                        <p className="text-xs text-gray-500">{item.desc}</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={!!settings?.[item.key]}
+                        onChange={(e)=>setSettings({...settings, [item.key]: e.target.checked})}
+                        className="h-4 w-4 accent-blue-600"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
+
               <div className="mt-6 flex justify-end gap-2">
-                <button onClick={()=>setSettingsOpen(false)} className="px-4 py-2 border rounded">Cancel</button>
-                <button onClick={()=>{ setSettingsOpen(false); setSettingsMessage('Settings updated'); saveSettings(); }} className="px-4 py-2 bg-blue-600 text-white rounded">Save</button>
+                <button onClick={()=>setSettingsOpen(false)} className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button onClick={()=>{ setSettingsOpen(false); setSettingsMessage('Settings updated'); saveSettings(); }} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Changes</button>
               </div>
             </div>
           </div>
@@ -1152,8 +1166,8 @@ export const StudentDashboard = ({ onNavigate }) => {
                     onNavigate('mentor-discovery')
                   } else if (item.id === 'my-mentors') {
                     onNavigate('student-mentors')
-                  } else if (item.id === 'upcoming-events') {
-                    onNavigate('events')
+                  } else if (item.id === 'my-events') {
+                    onNavigate('student-events')
                   }
                 }}
                 className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer border-l-4 border-blue-600"

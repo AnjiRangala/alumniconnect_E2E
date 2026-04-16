@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useState, useContext } from 'react'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { NavigationContext } from '../App.jsx'
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -9,6 +10,8 @@ export function LoginPage({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const navContext = useContext(NavigationContext)
+  const getBackPage = navContext?.getBackPage || (() => 'landing')
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -45,7 +48,7 @@ export function LoginPage({ onNavigate }) {
 
         // Redirect to appropriate dashboard
         const userType = result.data.user.userType === 'alumni' ? 'alumni-dashboard' : 'student-dashboard'
-        onNavigate(userType)
+        onNavigate(userType, { replace: true })
       } else {
         setError(result.message || 'Login failed')
       }
@@ -60,7 +63,7 @@ export function LoginPage({ onNavigate }) {
   return (
     <div className="min-h-screen bg-gradient-to-r from-blue-600 to-blue-800 flex items-center justify-center px-4">
       <button
-        onClick={() => onNavigate('landing')}
+        onClick={() => onNavigate(getBackPage(), { replace: true })}
         className="absolute top-6 left-6 text-white flex items-center gap-2 hover:bg-blue-700 px-4 py-2 rounded"
       >
         <ArrowLeft size={20} />

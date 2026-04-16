@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Lock, Eye, EyeOff, CheckCircle, ArrowLeft } from 'lucide-react';
+import { NavigationContext } from '../App.jsx';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
 export default function ResetPasswordPage({ onNavigate }) {
-  const [token, setToken] = useState('');
   const [email, setEmail] = useState('');
+  const [securityQuestion, setSecurityQuestion] = useState('');
+  const [securityAnswer, setSecurityAnswer] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -14,22 +16,21 @@ export default function ResetPasswordPage({ onNavigate }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [validating, setValidating] = useState(true);
+  const navContext = useContext(NavigationContext);
+  const getBackPage = navContext?.getBackPage || (() => 'student-login');
 
   useEffect(() => {
-    const hash = String(window.location.hash || '');
-    const queryString = hash.includes('?') ? hash.slice(hash.indexOf('?') + 1) : '';
-    const params = new URLSearchParams(queryString);
-    const tokenParam = params.get('token');
-    const emailParam = params.get('email');
+    const emailFromFlow = String(sessionStorage.getItem('resetSecurityEmail') || '');
+    const questionFromFlow = String(sessionStorage.getItem('resetSecurityQuestion') || '');
 
-    if (!tokenParam || !emailParam) {
-      setError('Invalid reset link. Please request a new password reset.');
+    if (!emailFromFlow || !questionFromFlow) {
+      setError('Security verification session expired. Please start forgot password again.');
       setValidating(false);
       return;
     }
 
-    setToken(tokenParam);
-    setEmail(emailParam);
+    setEmail(emailFromFlow);
+    setSecurityQuestion(questionFromFlow);
     setValidating(false);
   }, []);
 
@@ -48,17 +49,22 @@ export default function ResetPasswordPage({ onNavigate }) {
       return;
     }
 
+    if (!securityAnswer.trim()) {
+      setError('Security answer is required');
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/reset-password`, {
+      const response = await fetch(`${API_BASE_URL}/auth/reset-password-security`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          token,
           email,
+          securityAnswer: securityAnswer.trim(),
           newPassword
         })
       });
@@ -67,6 +73,9 @@ export default function ResetPasswordPage({ onNavigate }) {
 
       if (data.success) {
         setSuccess(true);
+        sessionStorage.removeItem('resetSecurityEmail');
+        sessionStorage.removeItem('resetSecurityQuestion');
+        setSecurityAnswer('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
@@ -111,25 +120,25 @@ export default function ResetPasswordPage({ onNavigate }) {
               Your password has been reset. You can now login with your new password.
             </p>
             <button
-              onClick={() => onNavigate?.('student-login')}
+              onClick={() => onNavigate?.(getBackPage(), { replace: true })}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition mb-3"
             >
               Go to Login
             </button>
             <button
-              onClick={() => onNavigate?.('alumni-login')}
+              onClick={() => onNavigate?.(getBackPage(), { replace: true })}
               className="w-full bg-gray-200 hover:bg-gray-300 text-gray-800 font-semibold py-2 rounded-lg transition"
             >
               Alumni Login
             </button>
           </div>
-        ) : error && !token ? (
+        ) : error && !email ? (
           <div className="text-center py-8">
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-700 font-semibold mb-4">{error}</p>
               <button
                 type="button"
-                onClick={() => onNavigate?.('student-login')}
+                onClick={() => onNavigate?.(getBackPage(), { replace: true })}
                 className="text-blue-600 hover:text-blue-700 font-semibold inline-flex items-center gap-2"
               >
                 <ArrowLeft className="w-4 h-4" />
@@ -145,6 +154,25 @@ export default function ResetPasswordPage({ onNavigate }) {
                 {error}
               </div>
             )}
+
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2">Security Question</label>
+              <div className="w-full px-4 py-3 border border-gray-200 rounded-lg bg-gray-50 text-gray-800">
+                {securityQuestion}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 font-semibold mb-2">Your Answer</label>
+              <input
+                type="text"
+                value={securityAnswer}
+                onChange={(e) => setSecurityAnswer(e.target.value)}
+                placeholder="Enter security answer"
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
 
             {/* New Password Input */}
             <div>
@@ -204,7 +232,7 @@ export default function ResetPasswordPage({ onNavigate }) {
             <div className="flex items-center justify-center">
               <button
                 type="button"
-                onClick={() => onNavigate?.('student-login')}
+                onClick={() => onNavigate?.(getBackPage(), { replace: true })}
                 className="text-blue-600 hover:text-blue-700 font-semibold flex items-center gap-2 text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />

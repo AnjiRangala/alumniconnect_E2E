@@ -8,7 +8,7 @@ const mentorshipRequestSchema = new mongoose.Schema({
   topic: { type: String, default: '' },
   note: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
-  status: { type: String, enum: ['pending','accepted','declined'], default: 'pending' },
+  status: { type: String, enum: ['pending','accepted','declined','completed'], default: 'pending' },
   mentorResponse: { type: String, default: '' }
 });
 

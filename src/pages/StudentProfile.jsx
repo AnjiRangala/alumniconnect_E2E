@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Navbar } from '../components/Navbar.jsx'
+import { BrandLogo } from '../components/BrandLogo.jsx'
 import { Footer } from '../components/Footer.jsx'
 import { ArrowLeft, Plus, X, Download } from 'lucide-react'
 
@@ -304,42 +304,70 @@ export const StudentProfile = ({ onNavigate }) => {
   }
 
   const uploadResume = async (e) => {
-    const file = e.target.files[0]
+    const file = e.target.files?.[0]
     if (!file) return
+
+    const isPdf = file.type === 'application/pdf' || String(file.name || '').toLowerCase().endsWith('.pdf')
+    if (!isPdf) {
+      setMessageType('error')
+      setMessage('❌ Only PDF files are allowed')
+      setTimeout(() => setMessage(null), 3000)
+      e.target.value = ''
+      return
+    }
+
+    const MAX_RESUME_SIZE_BYTES = 5 * 1024 * 1024
+    if (file.size > MAX_RESUME_SIZE_BYTES) {
+      setMessageType('error')
+      setMessage('❌ Resume must be 5 MB or smaller')
+      setTimeout(() => setMessage(null), 3000)
+      e.target.value = ''
+      return
+    }
 
     setLoading(true)
     try {
-      const reader = new FileReader()
-      reader.onload = async (event) => {
-        const base64 = event.target.result.split(',')[1]
-        const token = localStorage.getItem('token')
-        if (!token) return
-
-        const response = await fetch(`${API_BASE_URL}/profile/upload-resume`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            resumeBase64: base64,
-            fileName: file.name
-          })
-        })
-
-        const result = await response.json()
-        if (result.success) {
-          setResume(result.data.resume)
-          setMessageType('success')
-          setMessage('✅ Resume uploaded successfully!')
-          setTimeout(() => setMessage(null), 3000)
-        } else {
-          setMessageType('error')
-          setMessage(`❌ ${result.message}`)
-          setTimeout(() => setMessage(null), 3000)
+      const base64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = (event) => {
+          const dataUrl = String(event?.target?.result || '')
+          const extracted = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl
+          if (!extracted) {
+            reject(new Error('Invalid file data'))
+            return
+          }
+          resolve(extracted)
         }
+        reader.onerror = () => reject(new Error('Unable to read file'))
+        reader.readAsDataURL(file)
+      })
+
+      const token = localStorage.getItem('token')
+      if (!token) return
+
+      const response = await fetch(`${API_BASE_URL}/profile/upload-resume`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          resumeBase64: base64,
+          fileName: file.name
+        })
+      })
+
+      const result = await response.json()
+      if (result.success) {
+        setResume(result.data.resume)
+        setMessageType('success')
+        setMessage('✅ Resume uploaded successfully!')
+        setTimeout(() => setMessage(null), 3000)
+      } else {
+        setMessageType('error')
+        setMessage(`❌ ${result.message}`)
+        setTimeout(() => setMessage(null), 3000)
       }
-      reader.readAsDataURL(file)
     } catch (error) {
       console.error('Error uploading resume:', error)
       setMessageType('error')
@@ -347,6 +375,7 @@ export const StudentProfile = ({ onNavigate }) => {
       setTimeout(() => setMessage(null), 3000)
     } finally {
       setLoading(false)
+      e.target.value = ''
     }
   }
 
@@ -359,7 +388,11 @@ export const StudentProfile = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <Navbar onNavigate={onNavigate} />
+      <div className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="px-4 py-3 md:py-4">
+          <BrandLogo subtitle="Student" />
+        </div>
+      </div>
 
       {/* Header */}
       <div className="bg-gradient-to-r from-indigo-600 to-indigo-800 text-white p-6 md:p-8">
@@ -449,7 +482,7 @@ export const StudentProfile = ({ onNavigate }) => {
                 Replace
                 <input
                   type="file"
-                  accept="application/pdf,.doc,.docx"
+                  accept="application/pdf,.pdf"
                   onChange={uploadResume}
                   disabled={loading}
                   className="hidden"
@@ -460,10 +493,10 @@ export const StudentProfile = ({ onNavigate }) => {
             <label className="border-2 border-dashed border-indigo-300 rounded-lg p-8 text-center cursor-pointer hover:bg-indigo-50 transition block">
               <p className="text-3xl mb-2">📎</p>
               <p className="font-semibold text-gray-800">Click to upload resume</p>
-              <p className="text-xs text-gray-600 mt-1">PDF, DOC, or DOCX format</p>
+              <p className="text-xs text-gray-600 mt-1">PDF only, max 5 MB</p>
               <input
                 type="file"
-                accept="application/pdf,.doc,.docx"
+                accept="application/pdf,.pdf"
                 onChange={uploadResume}
                 disabled={loading}
                 className="hidden"

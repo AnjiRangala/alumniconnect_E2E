@@ -1,6 +1,7 @@
 import { Footer } from '../components/Footer.jsx';
 import { BadgeModal } from '../components/BadgeModal.jsx'
 import ImageCropModal from '../components/ImageCropModal.jsx';
+import { BrandLogo } from '../components/BrandLogo.jsx'
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -30,6 +31,8 @@ export const ProfilePage = ({ onNavigate }) => {
   const [cropImage, setCropImage] = useState(null)
   const [showCropModal, setShowCropModal] = useState(false)
   const [isReadOnlyView, setIsReadOnlyView] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [shareUrl, setShareUrl] = useState(null)
 
   const getLinkedInHref = (url) => {
     if (!url) return null
@@ -99,6 +102,7 @@ export const ProfilePage = ({ onNavigate }) => {
 
   const buildExperienceItems = (userData) => {
     if (!userData) return [];
+    if (userData.userType === 'student') return [];
 
     const items = [];
 
@@ -129,15 +133,15 @@ export const ProfilePage = ({ onNavigate }) => {
       parts.push(`from ${userData.institution}`);
     }
 
-    if (userData.role && userData.company) {
+    if (!isStudentUser && userData.role && userData.company) {
       parts.push(`currently working as ${userData.role} at ${userData.company}`);
-    } else if (userData.company) {
+    } else if (!isStudentUser && userData.company) {
       parts.push(`currently associated with ${userData.company}`);
-    } else if (userData.role) {
+    } else if (!isStudentUser && userData.role) {
       parts.push(`focused on ${userData.role}`);
     }
 
-    if (userData.experience) {
+    if (!isStudentUser && userData.experience) {
       parts.push(`with ${userData.experience} of experience`);
     }
 
@@ -160,20 +164,20 @@ export const ProfilePage = ({ onNavigate }) => {
   };
 
   const aboutText = user?.bio?.trim() || buildAutoAbout(user);
+  const isAlumni = user?.userType === 'alumni';
   const missingProfileItems = [
     !user?.fullName ? { key: 'fullName', label: 'Full Name' } : null,
-    !user?.company ? { key: 'company', label: 'Company' } : null,
+    !user?.company && isAlumni ? { key: 'company', label: 'Company' } : null,
     (!user?.skills || user.skills.length === 0) ? { key: 'skills', label: 'Skills' } : null,
     !user?.linkedinUrl ? { key: 'linkedinUrl', label: 'LinkedIn' } : null,
     !user?.githubUrl ? { key: 'githubUrl', label: 'GitHub' } : null
   ].filter(Boolean);
   const showIncompleteBanner = !isReadOnlyView && user?.userType === 'student' && missingProfileItems.length > 0;
-  const isAlumni = user?.userType === 'alumni';
   const alumniHighlights = [
-    user?.company ? `Currently at ${user.company}.` : null,
-    user?.role ? `Role: ${user.role}.` : null,
-    user?.industry ? `Industry focus: ${user.industry}.` : null,
-    user?.experience ? `Experience: ${user.experience}.` : null,
+    isAlumni && user?.company ? `Currently at ${user.company}.` : null,
+    isAlumni && user?.role ? `Role: ${user.role}.` : null,
+    isAlumni && user?.industry ? `Industry focus: ${user.industry}.` : null,
+    isAlumni && user?.experience ? `Experience: ${user.experience}.` : null,
     stats?.endorsementsCount ? `Earned ${stats.endorsementsCount} skill endorsements.` : null,
     stats?.visitorsCount ? `Profile viewed by ${stats.visitorsCount} people.` : null,
     user?.sessions ? `Completed ${user.sessions} mentoring sessions.` : null,
@@ -186,7 +190,6 @@ export const ProfilePage = ({ onNavigate }) => {
 
   useEffect(() => {
     if (isReadOnlyView) return;
-    if (user?.userType !== 'student') return;
 
     fetchVisitors();
 
@@ -225,8 +228,9 @@ export const ProfilePage = ({ onNavigate }) => {
 
   const fetchProfileData = async () => {
     try {
+      const viewMode = localStorage.getItem('profileViewMode')
       const viewUserId = localStorage.getItem('viewUserId')
-      if (viewUserId) {
+      if (viewMode === 'public' && viewUserId) {
         setIsReadOnlyView(true)
         setEditing(false)
         const token = localStorage.getItem('token')
@@ -240,14 +244,14 @@ export const ProfilePage = ({ onNavigate }) => {
           setLinkedinUrl(result.data.linkedinUrl || '')
           setGithubUrl(result.data.githubUrl || '')
 
-          // Track profile visit only when an authenticated alumni views a student profile
+          // Track profile visit for cross-user profile views
           try {
             const stored = localStorage.getItem('user')
             const currentUser = stored ? JSON.parse(stored) : null
-            const viewerType = currentUser?.userType
+            const viewerId = currentUser?._id || currentUser?.id
             const targetId = result.data?._id || result.data?.id
 
-            if (token && viewerType === 'alumni' && targetId) {
+            if (token && targetId && String(viewerId || '') !== String(targetId)) {
               await fetch(`${API_BASE_URL}/auth/profile/view`, {
                 method: 'POST',
                 headers: {
@@ -263,9 +267,13 @@ export const ProfilePage = ({ onNavigate }) => {
         } else {
           setError(result.message || 'Failed to load profile')
         }
-        // clear the viewUserId after loading
+        // clear the public view state after loading
+        localStorage.removeItem('profileViewMode')
         localStorage.removeItem('viewUserId')
       } else {
+        localStorage.removeItem('profileViewMode')
+        localStorage.removeItem('viewUserId')
+        localStorage.removeItem('profileBackPage')
         setIsReadOnlyView(false)
         const token = localStorage.getItem('token');
         if (!token) {
@@ -577,21 +585,49 @@ export const ProfilePage = ({ onNavigate }) => {
 
       const result = await response.json();
       if (result.success) {
-        const url = result.shareUrl;
-        setStatusMessage(result.message + (url ? ` — ${url}` : ''));
-        // open options: WhatsApp and LinkedIn in new tabs
-        const text = encodeURIComponent(`Check out my profile on AlumniConnect: ${url}`);
-        const wa = `https://api.whatsapp.com/send?text=${text}`;
-        const li = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`;
-        // open both in new windows for convenience (user can close unwanted)
-        window.open(wa, '_blank');
-        window.open(li, '_blank');
+        setShareUrl(result.shareUrl);
+        setShowShareModal(true);
       } else {
-        setError(result.message || 'Failed to share profile');
+        setError(result.message || 'Failed to generate share URL');
       }
     } catch (err) {
       console.error('Error sharing profile:', err);
       setError('Network error while sharing.');
+    }
+  };
+
+  const handleSharePlatform = (platform) => {
+    if (!shareUrl) return;
+    
+    const text = encodeURIComponent(`Check out my profile on AlumniConnect: ${shareUrl}`);
+    let url = '';
+
+    switch(platform) {
+      case 'whatsapp':
+        url = `https://api.whatsapp.com/send?text=${text}`;
+        break;
+      case 'linkedin':
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+        break;
+      case 'facebook':
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+        break;
+      case 'twitter':
+        url = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${text}`;
+        break;
+      case 'email':
+        url = `mailto:?subject=Check out my AlumniConnect Profile&body=Check out my profile on AlumniConnect: ${shareUrl}`;
+        break;
+      case 'copy':
+        navigator.clipboard.writeText(shareUrl);
+        setStatusMessage('Share URL copied to clipboard!');
+        return;
+      default:
+        return;
+    }
+
+    if (url) {
+      window.open(url, '_blank');
     }
   };
 
@@ -626,6 +662,13 @@ export const ProfilePage = ({ onNavigate }) => {
   };
 
   const navigateBack = () => {
+    if (isReadOnlyView) {
+      const backPage = localStorage.getItem('profileBackPage') || 'mentor-discovery'
+      localStorage.removeItem('profileBackPage')
+      onNavigate(backPage)
+      return
+    }
+
     try {
       const stored = localStorage.getItem('user')
       if (stored) {
@@ -642,19 +685,26 @@ export const ProfilePage = ({ onNavigate }) => {
   }
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="px-4 py-3 md:py-4">
+          <BrandLogo subtitle={user?.userType === 'alumni' ? 'Alumni' : 'Student'} />
+        </div>
+      </div>
+
       {/* Custom Header with Back Button */}
-      <div className="bg-white shadow-sm p-4 md:p-6 border-b">
-        <div className="max-w-4xl mx-auto flex flex-col gap-4">
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-6xl mx-auto px-4 py-4 md:py-5">
           <button
             onClick={navigateBack}
-            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold text-sm md:text-base w-fit"
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-semibold text-sm md:text-base w-fit mb-3"
           >
             <ArrowLeft size={18} />
             <span>Back to Dashboard</span>
           </button>
-          <div>
+
+          <div className="text-center">
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-800">👤 My Profile</h1>
-            <p className="text-sm md:text-base text-gray-600 mt-2 italic max-w-2xl">"Be yourself; everyone else is already taken." - Oscar Wilde</p>
+            <p className="text-sm md:text-base text-gray-600 mt-2 italic mx-auto">"Be yourself; everyone else is already taken." - Oscar Wilde</p>
           </div>
         </div>
       </div>
@@ -678,170 +728,271 @@ export const ProfilePage = ({ onNavigate }) => {
           </div>
         ) : user ? (
           <>
-            {/* Profile Header */}
+            {/* Profile Header - Center Aligned */}
             <div className="bg-white rounded-2xl shadow-lg overflow-hidden mb-8 border border-gray-100">
               <div className="h-24 md:h-28 bg-gradient-to-r from-slate-800 via-slate-700 to-slate-600" />
-              <div className="p-4 md:p-8 -mt-12 md:-mt-14 bg-white rounded-xl shadow-sm">
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-6 md:gap-8">
-                  <div className="flex flex-col items-center md:items-start">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={user?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&size=256&background=random`}
-                        alt="Profile"
-                        className="w-24 h-24 md:w-32 md:h-32 rounded-full object-cover bg-white border-4 border-white shadow-sm"
-                      />
-                      {!isReadOnlyView && (
-                        <div className="flex items-center gap-2">
-                          <label className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-xs md:text-sm font-semibold shadow-sm cursor-pointer hover:bg-gray-50 whitespace-nowrap">
-                            {photoUploading ? 'Uploading...' : (user?.photo ? 'Edit photo' : 'Upload photo')}
-                            <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePhotoUpload} />
-                          </label>
-                          {user?.photo && (
-                            <button
-                              onClick={handlePhotoDelete}
-                              disabled={photoDeleting || photoUploading}
-                              className="bg-white border border-red-200 text-red-600 rounded-lg px-3 py-2 text-xs md:text-sm font-semibold shadow-sm hover:bg-red-50 disabled:opacity-60"
-                            >
-                              {photoDeleting ? 'Deleting...' : 'Delete photo'}
-                            </button>
-                          )}
-                        </div>
+              <div className="p-4 md:p-8 bg-white">
+                {/* Profile Name Section - Above Photo, Center Aligned */}
+                <div className="text-center mb-6">
+                  <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">{user?.fullName || 'User'}</h1>
+                  <p className="text-gray-600 text-base md:text-lg mt-2">{user?.userType === 'student' ? 'Student' : 'Alumni'} | {user?.field || 'Professional'}</p>
+                  <p className="text-gray-500 mt-1 text-sm md:text-base">{user?.location || 'Location not set'}</p>
+                  {isReadOnlyView && (
+                    <p className="text-xs md:text-sm text-amber-700 mt-2">Read-only profile view</p>
+                  )}
+                </div>
+
+                {/* Photo and Controls - Center Aligned */}
+                <div className="flex flex-col items-center mb-6">
+                  <img
+                    src={user?.photo || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.fullName || 'User')}&size=256&background=random`}
+                    alt="Profile"
+                    className="w-32 h-32 md:w-40 md:h-40 rounded-full object-cover bg-white border-4 border-white shadow-lg"
+                  />
+                  {!isReadOnlyView && (
+                    <div className="flex items-center gap-2 mt-4">
+                      <label className="bg-white border border-gray-200 text-gray-700 rounded-lg px-3 py-2 text-xs md:text-sm font-semibold shadow-sm cursor-pointer hover:bg-gray-50 whitespace-nowrap">
+                        {photoUploading ? 'Uploading...' : (user?.photo ? 'Edit photo' : 'Upload photo')}
+                        <input type="file" accept="image/jpeg,image/png" className="hidden" onChange={handlePhotoUpload} />
+                      </label>
+                      {user?.photo && (
+                        <button
+                          onClick={handlePhotoDelete}
+                          disabled={photoDeleting || photoUploading}
+                          className="bg-white border border-red-200 text-red-600 rounded-lg px-3 py-2 text-xs md:text-sm font-semibold shadow-sm hover:bg-red-50 disabled:opacity-60"
+                        >
+                          {photoDeleting ? 'Deleting...' : 'Delete'}
+                        </button>
                       )}
                     </div>
-                    <p className="mt-2 text-[11px] text-gray-500">JPG/PNG • Max 2MB</p>
+                  )}
+                  <p className="mt-2 text-[11px] text-gray-500">JPG/PNG • Max 2MB</p>
+                </div>
+
+                {/* Stats Display - Center Aligned */}
+                {stats && (
+                  <div className="mt-4 flex flex-wrap gap-2 justify-center">
+                    <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs md:text-sm">🏅 Endorsements: {stats.endorsementsCount}</span>
+                    <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs md:text-sm">👀 Visitors: {stats.visitorsCount}</span>
                   </div>
-                  <div className="flex-1 text-center md:text-left">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-                      <div>
-                        <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900">{user?.fullName || 'User'}</h1>
-                        <p className="text-gray-600 text-base md:text-lg">{user?.userType === 'student' ? 'Student' : 'Alumni'} | {user?.field || 'Professional'}</p>
-                        <p className="text-gray-500 mt-1 text-sm md:text-base">{user?.location || 'Location not set'}</p>
-                        {isReadOnlyView && (
-                          <p className="text-xs md:text-sm text-amber-700 mt-2">Read-only profile view</p>
-                        )}
-                      </div>
-                      <div className="flex flex-col sm:flex-row gap-3">
-                        {!isReadOnlyView && !editing ? (
-                          <>
-                            <button onClick={startEditing} className="bg-blue-600 text-white px-5 md:px-6 py-2 rounded-lg hover:bg-blue-700 text-sm md:text-base font-semibold shadow-sm">Edit Profile</button>
-                            <button onClick={handleShare} className="border border-blue-600 text-blue-600 px-5 md:px-6 py-2 rounded-lg hover:bg-blue-50 text-sm md:text-base font-semibold">Share</button>
-                          </>
-                        ) : !isReadOnlyView ? (
-                          <div className="flex gap-2">
-                            <button onClick={handleSave} className="bg-green-600 text-white px-5 md:px-6 py-2 rounded-lg hover:bg-green-700 text-sm md:text-base font-semibold">Save</button>
-                            <button onClick={cancelEditing} className="border border-gray-300 text-gray-700 px-5 md:px-6 py-2 rounded-lg hover:bg-gray-50 text-sm md:text-base">Cancel</button>
-                          </div>
-                        ) : null}
-                      </div>
+                )}
+
+                {/* Edit and Share Buttons - Center Aligned */}
+                <div className="flex flex-col sm:flex-row gap-3 justify-center mt-6">
+                  {!isReadOnlyView && !editing ? (
+                    <>
+                      <button onClick={startEditing} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 text-sm md:text-base font-semibold shadow-sm">
+                        ✏️ Edit Profile
+                      </button>
+                      <button onClick={handleShare} className="border border-blue-600 text-blue-600 px-6 py-2 rounded-lg hover:bg-blue-50 text-sm md:text-base font-semibold">
+                        🔗 Share Profile
+                      </button>
+                    </>
+                  ) : !isReadOnlyView ? (
+                    <div className="flex gap-2 justify-center">
+                      <button onClick={handleSave} className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 text-sm md:text-base font-semibold">
+                        Save
+                      </button>
+                      <button onClick={cancelEditing} className="border border-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-50 text-sm md:text-base">
+                        Cancel
+                      </button>
                     </div>
+                  ) : null}
+                </div>
 
-                    {statusMessage && (
-                      <p className="mt-3 text-sm text-green-700">{statusMessage}</p>
-                    )}
-                    {photoError && (
-                      <p className="mt-2 text-xs text-red-600">{photoError}</p>
-                    )}
-                    {stats && (
-                      <div className="mt-3 flex flex-wrap gap-2 text-xs md:text-sm">
-                        <span className="px-3 py-1 rounded-full bg-blue-50 text-blue-700">🏅 Endorsements: {stats.endorsementsCount}</span>
-                        <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700">👀 Visitors: {stats.visitorsCount}</span>
-                      </div>
-                    )}
+                {/* Status Messages */}
+                {statusMessage && (
+                  <p className="mt-4 text-sm text-green-700 text-center">{statusMessage}</p>
+                )}
+                {photoError && (
+                  <p className="mt-2 text-xs text-red-600 text-center">{photoError}</p>
+                )}
 
-                    {!isReadOnlyView && editing && (
-                      <div className="mt-4 bg-gray-50 p-4 rounded-lg border border-gray-100">
-                        <label className="block text-sm font-medium text-gray-700">Full name</label>
-                        <input className="mt-1 w-full p-2 border rounded" value={fullName} onChange={e => setFullName(e.target.value)} />
+                {/* Edit Form - If Editing */}
+                {!isReadOnlyView && editing && (
+                  <div className="mt-6 bg-gray-50 p-4 rounded-lg border border-gray-100">
+                    <label className="block text-sm font-medium text-gray-700">Full name</label>
+                    <input className="mt-1 w-full p-2 border rounded" value={fullName} onChange={e => setFullName(e.target.value)} />
+                    {isAlumni && (
+                      <>
                         <label className="block text-sm font-medium text-gray-700 mt-3">Company</label>
                         <input className="mt-1 w-full p-2 border rounded" value={company} onChange={e => setCompany(e.target.value)} />
-                        <label className="block text-sm font-medium text-gray-700 mt-3">Institution</label>
-                        <select className="mt-1 w-full p-2 border rounded" value={institution} onChange={e => setInstitution(e.target.value)}>
-                          <option value="">Select institution</option>
-                          {colleges.map((college) => (
-                            <option key={college} value={college}>{college}</option>
-                          ))}
+                      </>
+                    )}
+                    <label className="block text-sm font-medium text-gray-700 mt-3">Institution</label>
+                    <select className="mt-1 w-full p-2 border rounded" value={institution} onChange={e => setInstitution(e.target.value)}>
+                      <option value="">Select institution</option>
+                      {colleges.map((college) => (
+                        <option key={college} value={college}>{college}</option>
+                      ))}
+                    </select>
+                    <label className="block text-sm font-medium text-gray-700 mt-3">Skills (comma separated)</label>
+                    <input className="mt-1 w-full p-2 border rounded" value={skillsInput} onChange={e => setSkillsInput(e.target.value)} />
+                    <label className="block text-sm font-medium text-gray-700 mt-3">LinkedIn URL</label>
+                    <input className="mt-1 w-full p-2 border rounded" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="https://www.linkedin.com/in/yourname" />
+                    <label className="block text-sm font-medium text-gray-700 mt-3">GitHub URL</label>
+                    <input className="mt-1 w-full p-2 border rounded" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/yourname" />
+                    {isAlumni && (
+                      <>
+                        <label className="block text-sm font-medium text-gray-700 mt-3">Availability</label>
+                        <select className="mt-1 w-full p-2 border rounded" value={availability} onChange={e => setAvailability(e.target.value)}>
+                          <option value="">Select availability</option>
+                          <option value="Weekdays">Weekdays (Mon-Fri)</option>
+                          <option value="Weekends">Weekends (Sat-Sun)</option>
+                          <option value="Evenings">Evenings (after 6 PM)</option>
+                          <option value="Flexible">Flexible (Anytime)</option>
                         </select>
-                        <label className="block text-sm font-medium text-gray-700 mt-3">Skills (comma separated)</label>
-                        <input className="mt-1 w-full p-2 border rounded" value={skillsInput} onChange={e => setSkillsInput(e.target.value)} />
-                        <label className="block text-sm font-medium text-gray-700 mt-3">LinkedIn URL</label>
-                        <input className="mt-1 w-full p-2 border rounded" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)} placeholder="https://www.linkedin.com/in/yourname" />
-                        <label className="block text-sm font-medium text-gray-700 mt-3">GitHub URL</label>
-                        <input className="mt-1 w-full p-2 border rounded" value={githubUrl} onChange={e => setGithubUrl(e.target.value)} placeholder="https://github.com/yourname" />
-                        {isAlumni && (
-                          <>
-                            <label className="block text-sm font-medium text-gray-700 mt-3">Availability</label>
-                            <select className="mt-1 w-full p-2 border rounded" value={availability} onChange={e => setAvailability(e.target.value)}>
-                              <option value="">Select availability</option>
-                              <option value="Weekdays">Weekdays (Mon-Fri)</option>
-                              <option value="Weekends">Weekends (Sat-Sun)</option>
-                              <option value="Evenings">Evenings (after 6 PM)</option>
-                              <option value="Flexible">Flexible (Anytime)</option>
-                            </select>
-                          </>
-                        )}
-                        {!isAlumni && (
-                          <>
-                            <div className="mt-3 flex items-center justify-between">
-                              <label className="block text-sm font-medium text-gray-700">About</label>
-                              <button
-                                type="button"
-                                onClick={generateAboutForEdit}
-                                className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
-                              >
-                                Auto Generate About
-                              </button>
-                            </div>
-                            <textarea
-                              className="mt-1 w-full p-2 border rounded"
-                              rows={4}
-                              maxLength={1000}
-                              value={aboutInput}
-                              onChange={e => setAboutInput(e.target.value)}
-                              placeholder="Write your About summary"
-                            />
-                            <p className="mt-1 text-xs text-gray-500">{aboutInput.length}/1000</p>
-                          </>
-                        )}
-                      </div>
+                      </>
                     )}
-
-                    {!editing && (
-                      <div className="mt-4">
-                        <h3 className="text-sm font-medium text-gray-700">Profiles</h3>
-                        <div className="flex gap-2 mt-2">
-                          {getLinkedInHref(user?.linkedinUrl) && (<a href={getLinkedInHref(user?.linkedinUrl)} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">LinkedIn</a>)}
-                          {user?.githubUrl && (<a href={user.githubUrl} target="_blank" rel="noreferrer" className="text-gray-800 hover:underline">GitHub</a>)}
+                    {!isAlumni && (
+                      <>
+                        <div className="mt-3 flex items-center justify-between">
+                          <label className="block text-sm font-medium text-gray-700">About</label>
+                          <button
+                            type="button"
+                            onClick={generateAboutForEdit}
+                            className="text-xs px-3 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200"
+                          >
+                            Auto Generate About
+                          </button>
                         </div>
-                      </div>
-                    )}
-
-                    {!isReadOnlyView && (
-                      <div className="mt-4">
-                        <button onClick={copyShareUrl} className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50">Copy Share URL</button>
-                      </div>
+                        <textarea
+                          className="mt-1 w-full p-2 border rounded"
+                          rows={4}
+                          maxLength={1000}
+                          value={aboutInput}
+                          onChange={e => setAboutInput(e.target.value)}
+                          placeholder="Write your About summary"
+                        />
+                        <p className="mt-1 text-xs text-gray-500">{aboutInput.length}/1000</p>
+                      </>
                     )}
                   </div>
-                </div>
+                )}
+
+                {/* Linked Profiles */}
+                {!editing && (
+                  <div className="mt-6 text-center">
+                    <h3 className="text-sm font-medium text-gray-700 mb-3">Connected Profiles</h3>
+                    <div className="flex gap-3 justify-center flex-wrap">
+                      {getLinkedInHref(user?.linkedinUrl) && (
+                        <a href={getLinkedInHref(user?.linkedinUrl)} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 text-sm font-semibold">
+                          🔗 LinkedIn
+                        </a>
+                      )}
+                      {user?.githubUrl && (
+                        <a href={user.githubUrl} target="_blank" rel="noreferrer" className="inline-block px-4 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm font-semibold">
+                          💻 GitHub
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
-            {/* Visitors Section */}
-            <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mt-6">
-              <h2 className="text-xl md:text-2xl font-bold mb-4">👀 Who visited my profile</h2>
-              {visitors && visitors.length > 0 ? (
-                <ul className="space-y-2">
-                  {visitors.map((v, i) => (
-                    <li key={i} className="flex justify-between items-center p-2 border rounded">
-                      <div>
-                        <p className="font-semibold text-sm">{v.viewerName || 'Someone'}</p>
-                        <p className="text-xs text-gray-500">{new Date(v.viewedAt).toLocaleString()}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-gray-500">No visitors yet.</p>
-              )}
-            </div>
+
+            {/* Share Modal */}
+            {showShareModal && shareUrl && (
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-900">🔗 Share Your Profile</h2>
+                    <button
+                      onClick={() => setShowShareModal(false)}
+                      className="text-gray-500 hover:text-gray-700 text-2xl"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-6">Choose a platform to share your profile:</p>
+
+                  <div className="space-y-3 mb-6">
+                    <button
+                      onClick={() => handleSharePlatform('whatsapp')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 transition"
+                    >
+                      <span className="text-2xl">💚</span>
+                      <span className="font-semibold text-gray-800">WhatsApp</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSharePlatform('linkedin')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition"
+                    >
+                      <span className="text-2xl">💼</span>
+                      <span className="font-semibold text-gray-800">LinkedIn</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSharePlatform('facebook')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition"
+                    >
+                      <span className="text-2xl">👥</span>
+                      <span className="font-semibold text-gray-800">Facebook</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSharePlatform('twitter')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-sky-50 border border-sky-200 rounded-lg hover:bg-sky-100 transition"
+                    >
+                      <span className="text-2xl">𝕏</span>
+                      <span className="font-semibold text-gray-800">Twitter/X</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSharePlatform('email')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition"
+                    >
+                      <span className="text-2xl">📧</span>
+                      <span className="font-semibold text-gray-800">Email</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleSharePlatform('copy')}
+                      className="w-full flex items-center gap-3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition"
+                    >
+                      <span className="text-2xl">📋</span>
+                      <span className="font-semibold text-gray-800">Copy Link</span>
+                    </button>
+                  </div>
+
+                  <div className="bg-gray-50 p-3 rounded-lg mb-4">
+                    <p className="text-xs text-gray-600 mb-2">Your share link:</p>
+                    <p className="text-xs text-gray-800 break-all font-mono">{shareUrl}</p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowShareModal(false)}
+                    className="w-full px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 font-semibold"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+            {!isReadOnlyView && (
+              <>
+                {/* Visitors Section */}
+                <div className="bg-white rounded-lg shadow-md p-4 md:p-8 mt-6">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4">👀 Who visited my profile</h2>
+                  {visitors && visitors.length > 0 ? (
+                    <ul className="space-y-2">
+                      {visitors.map((v, i) => (
+                        <li key={i} className="flex justify-between items-center p-2 border rounded">
+                          <div>
+                            <p className="font-semibold text-sm">{v.viewerName || 'Someone'}</p>
+                            <p className="text-xs text-gray-500">{new Date(v.viewedAt).toLocaleString()}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-gray-500">No visitors yet.</p>
+                  )}
+                </div>
+              </>
+            )}
 
             {/* Badge Modal */}
             {selectedBadge && (
@@ -964,23 +1115,7 @@ export const ProfilePage = ({ onNavigate }) => {
                   </div>
                 </div>
 
-                {/* Experience Section */}
-                <div className="bg-white rounded-lg shadow-md p-4 md:p-8">
-                  <h2 className="text-xl md:text-2xl font-bold mb-4">💼 Experience</h2>
-                  <div className="space-y-6">
-                    {experienceItems.length > 0 ? (
-                      experienceItems.map((exp, index) => (
-                        <div key={index} className="pb-6 border-b border-gray-200">
-                          <p className="font-semibold text-base md:text-lg">{exp.title}</p>
-                          <p className="text-gray-600 text-sm md:text-base">{exp.company}</p>
-                          <p className="text-gray-500 text-xs md:text-sm">{exp.period}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-gray-500 text-sm">No experience added yet.</p>
-                    )}
-                  </div>
-                </div>
+                {/* Experience section removed for students */}
               </>
             ) : (
               <>

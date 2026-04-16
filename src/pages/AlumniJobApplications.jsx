@@ -17,6 +17,7 @@ export const AlumniJobApplications = ({ onNavigate }) => {
   const [newStatus, setNewStatus] = useState({})
   const [newNotes, setNewNotes] = useState({})
   const [selectedStudentProfile, setSelectedStudentProfile] = useState(null)
+  const [selectedApplicationForProfile, setSelectedApplicationForProfile] = useState(null)
 
   const getLinkedInHref = (url) => {
     if (!url) return null
@@ -116,7 +117,9 @@ export const AlumniJobApplications = ({ onNavigate }) => {
     }
   }
 
-  const fetchStudentProfile = async (studentId) => {
+  const fetchStudentProfile = async (studentId, applicationContext = null) => {
+    setSelectedApplicationForProfile(applicationContext)
+
     if (studentProfiles[studentId]) {
       setSelectedStudentProfile(studentProfiles[studentId])
       return
@@ -153,28 +156,102 @@ export const AlumniJobApplications = ({ onNavigate }) => {
     }
   }
 
-  const downloadResume = async (studentId, fileName) => {
-    try {
-      const token = localStorage.getItem('token')
-      if (!token) return
+  const fetchResumePayload = async (studentId) => {
+    const token = localStorage.getItem('token')
+    if (!token) return null
 
-      const response = await fetch(`${API_BASE_URL}/profile/resume/${studentId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+    const response = await fetch(`${API_BASE_URL}/profile/resume/${studentId}`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
 
-      const result = await response.json()
-      if (result.success && result.data.base64) {
-        const link = document.createElement('a')
-        link.href = `data:application/pdf;base64,${result.data.base64}`
-        link.download = result.data.fileName || 'resume.pdf'
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+    const contentType = response.headers.get('content-type') || ''
+    if (!contentType.includes('application/json')) {
+      const rawText = await response.text()
+      const hint = rawText?.startsWith('<!DOCTYPE') ? 'Server returned HTML instead of API JSON' : 'Invalid server response'
+      throw new Error(hint)
+    }
+
+    const result = await response.json()
+    if (!response.ok || !result.success || !result.data?.base64) {
+      throw new Error(result?.message || 'Resume not found')
+    }
+
+    return result.data
+  }
+
+  const base64ToPdfBlobUrl = (base64) => {
+    const cleanBase64 = String(base64 || '').replace(/\s/g, '')
+    const byteCharacters = atob(cleanBase64)
+    const byteNumbers = new Array(byteCharacters.length)
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i)
+    }
+    const byteArray = new Uint8Array(byteNumbers)
+    const blob = new Blob([byteArray], { type: 'application/pdf' })
+    return URL.createObjectURL(blob)
+  }
+
+  const resolveResumeData = async (studentId, fileName, fallbackBase64 = null) => {
+    const normalizedFallback = String(fallbackBase64 || '').trim()
+    if (normalizedFallback) {
+      const cleanBase64 = normalizedFallback.includes(',') ? normalizedFallback.split(',')[1] : normalizedFallback
+      return {
+        base64: cleanBase64,
+        fileName: fileName || 'resume.pdf'
       }
+    }
+
+    return fetchResumePayload(studentId)
+  }
+
+  const downloadResume = async (studentId, fileName, fallbackBase64 = null) => {
+    try {
+      const resumeData = await resolveResumeData(studentId, fileName, fallbackBase64)
+      if (!resumeData) return
+
+      const pdfUrl = base64ToPdfBlobUrl(resumeData.base64)
+      const link = document.createElement('a')
+      link.href = pdfUrl
+      link.download = resumeData.fileName || fileName || 'resume.pdf'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000)
     } catch (error) {
       console.error('Error downloading resume:', error)
       setMessageType('error')
       setMessage('Failed to download resume')
+      setTimeout(() => setMessage(null), 3000)
+    }
+  }
+
+  const viewResume = async (studentId, fileName, fallbackBase64 = null) => {
+    let previewWindow = null
+    try {
+      // Open first (direct user gesture), then load resume to avoid popup blocking.
+      previewWindow = window.open('', '_blank')
+      if (!previewWindow) {
+        setMessageType('error')
+        setMessage('Popup blocked. Please allow popups to view resume.')
+        setTimeout(() => setMessage(null), 3000)
+        return
+      }
+
+      previewWindow.document.write('<p style="font-family:sans-serif;padding:16px;">Loading resume...</p>')
+
+      const resumeData = await resolveResumeData(studentId, fileName, fallbackBase64)
+      if (!resumeData) return
+
+      const pdfUrl = base64ToPdfBlobUrl(resumeData.base64)
+      previewWindow.location.href = pdfUrl
+      setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000)
+    } catch (error) {
+      if (previewWindow && !previewWindow.closed) {
+        previewWindow.close()
+      }
+      console.error('Error viewing resume:', error)
+      setMessageType('error')
+      setMessage('Failed to open resume')
       setTimeout(() => setMessage(null), 3000)
     }
   }
@@ -333,6 +410,23 @@ export const AlumniJobApplications = ({ onNavigate }) => {
     }
   }
 
+  const STATUS_FLOW = ['applied', 'shortlisted', 'interview', 'accepted', 'rejected']
+
+  const getStatusOptions = (currentStatus) => {
+    const normalizedCurrent = String(currentStatus || 'applied').toLowerCase()
+    const currentIndex = STATUS_FLOW.indexOf(normalizedCurrent)
+
+    if (currentIndex === -1) return STATUS_FLOW
+
+    // Keep status progression intuitive: current stage first, then forward stages.
+    // If a candidate is already accepted/rejected, keep it fixed to avoid accidental rollback.
+    if (normalizedCurrent === 'accepted' || normalizedCurrent === 'rejected') {
+      return [normalizedCurrent]
+    }
+
+    return STATUS_FLOW.slice(currentIndex)
+  }
+
   const currentJobApplications = applications[selectedJobId] || []
   const selectedJob = postedJobs.find(j => j._id === selectedJobId)
 
@@ -486,7 +580,7 @@ export const AlumniJobApplications = ({ onNavigate }) => {
                             <div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
                               {/* View Student Profile Button */}
                               <button
-                                onClick={() => fetchStudentProfile(app.studentId)}
+                                onClick={() => fetchStudentProfile(app.studentId, app)}
                                 className="w-full px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold transition"
                               >
                                 👤 View Student Profile & Skills
@@ -501,7 +595,9 @@ export const AlumniJobApplications = ({ onNavigate }) => {
 
                               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-2">
                                 <p className="text-xs text-gray-700"><span className="font-semibold">Phone:</span> {app.phoneNumber || 'N/A'}</p>
-                                <p className="text-xs text-gray-700"><span className="font-semibold">Resume:</span> {app.resumeFileName || 'Uploaded'}</p>
+                                {app.resumeFileName && (
+                                  <p className="text-xs text-gray-700"><span className="font-semibold">Resume:</span> {app.resumeFileName}</p>
+                                )}
                                 {app.statementOfPurpose && (
                                   <p className="text-xs text-gray-700"><span className="font-semibold">Statement of Purpose:</span> {app.statementOfPurpose}</p>
                                 )}
@@ -514,11 +610,11 @@ export const AlumniJobApplications = ({ onNavigate }) => {
                                   onChange={(e) => setNewStatus(prev => ({ ...prev, [app._id]: e.target.value }))}
                                   className="w-full p-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                  <option value="applied">Applied</option>
-                                  <option value="shortlisted">Shortlisted</option>
-                                  <option value="interview">Interview</option>
-                                  <option value="accepted">Accepted</option>
-                                  <option value="rejected">Rejected</option>
+                                  {getStatusOptions(app.status).map((status) => (
+                                    <option key={status} value={status}>
+                                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                                    </option>
+                                  ))}
                                 </select>
                               </div>
 
@@ -578,7 +674,10 @@ export const AlumniJobApplications = ({ onNavigate }) => {
                 <p className="text-indigo-100">{selectedStudentProfile.email}</p>
               </div>
               <button
-                onClick={() => setSelectedStudentProfile(null)}
+                onClick={() => {
+                  setSelectedStudentProfile(null)
+                  setSelectedApplicationForProfile(null)
+                }}
                 className="p-2 bg-white bg-opacity-20 rounded-lg hover:bg-opacity-30"
               >
                 <X size={24} />
@@ -651,21 +750,31 @@ export const AlumniJobApplications = ({ onNavigate }) => {
               )}
 
               {/* Resume */}
-              {selectedStudentProfile.resume && selectedStudentProfile.resume.fileName && (
+              {(selectedApplicationForProfile?.resumeFileName || selectedStudentProfile?.resume?.fileName) && (
                 <div>
                   <h3 className="text-lg font-bold text-gray-800 mb-3">📄 Resume</h3>
                   <div className="border border-gray-200 rounded-lg p-4 flex justify-between items-center">
                     <div>
-                      <p className="font-semibold text-gray-800">{selectedStudentProfile.resume.fileName}</p>
-                      <p className="text-xs text-gray-500">Uploaded: {new Date(selectedStudentProfile.resume.uploadedAt).toLocaleDateString()}</p>
+                      <p className="font-semibold text-gray-800">{selectedApplicationForProfile?.resumeFileName || selectedStudentProfile?.resume?.fileName}</p>
+                      {selectedStudentProfile?.resume?.uploadedAt && (
+                        <p className="text-xs text-gray-500">Uploaded: {new Date(selectedStudentProfile.resume.uploadedAt).toLocaleDateString()}</p>
+                      )}
                     </div>
-                    <button
-                      onClick={() => downloadResume(selectedStudentProfile._id, selectedStudentProfile.resume.fileName)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center gap-2"
-                    >
-                      <Download size={16} />
-                      Download
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => viewResume(selectedStudentProfile._id, selectedApplicationForProfile?.resumeFileName || selectedStudentProfile?.resume?.fileName, selectedApplicationForProfile?.resume)}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold text-sm"
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => downloadResume(selectedStudentProfile._id, selectedApplicationForProfile?.resumeFileName || selectedStudentProfile?.resume?.fileName, selectedApplicationForProfile?.resume)}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold text-sm flex items-center gap-2"
+                      >
+                        <Download size={16} />
+                        Download
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -673,7 +782,7 @@ export const AlumniJobApplications = ({ onNavigate }) => {
               {/* No Data Message */}
               {(!selectedStudentProfile.skills || selectedStudentProfile.skills.length === 0) &&
                (!selectedStudentProfile.projects || selectedStudentProfile.projects.length === 0) &&
-               (!selectedStudentProfile.resume || !selectedStudentProfile.resume.fileName) && (
+               (!selectedApplicationForProfile?.resumeFileName && (!selectedStudentProfile.resume || !selectedStudentProfile.resume.fileName)) && (
                 <div className="text-center py-8">
                   <p className="text-gray-500">No additional information available yet</p>
                 </div>
@@ -681,7 +790,10 @@ export const AlumniJobApplications = ({ onNavigate }) => {
 
               <div className="flex gap-3">
                 <button
-                  onClick={() => setSelectedStudentProfile(null)}
+                  onClick={() => {
+                    setSelectedStudentProfile(null)
+                    setSelectedApplicationForProfile(null)
+                  }}
                   className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-800 font-semibold hover:bg-gray-50"
                 >
                   Close Profile

@@ -2,6 +2,7 @@ import { Footer } from '../components/Footer.jsx';
 import { MentorCard } from '../components/MentorCard.jsx';
 import { ArrowLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { BrandLogo } from '../components/BrandLogo.jsx';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
@@ -128,6 +129,32 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
     });
   };
 
+  const handleViewMentorProfile = async (mentor) => {
+    const targetId = mentor?._id || mentor?.id;
+    if (!targetId) return;
+
+    try {
+      const token = localStorage.getItem('token');
+      if (token) {
+        await fetch(`${API_BASE_URL}/auth/profile/view`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ targetUserId: targetId })
+        });
+      }
+    } catch (error) {
+      console.error('Error recording mentor profile view:', error);
+    }
+
+    localStorage.setItem('profileViewMode', 'public');
+    localStorage.setItem('viewUserId', String(targetId));
+    localStorage.setItem('profileBackPage', 'mentor-discovery');
+    onNavigate('profile');
+  };
+
   const handleRequestMentor = (mentorId) => {
     const mentor = mentors.find(m => m.id === mentorId || m._id === mentorId);
     if (mentor) {
@@ -239,6 +266,12 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
+      <div className="bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm">
+        <div className="px-4 py-3 md:py-4">
+          <BrandLogo subtitle="Student" />
+        </div>
+      </div>
+
       {/* Custom Header with Back Button */}
       <div className="bg-white shadow-sm p-4 md:p-6 border-b">
         <div className="max-w-7xl mx-auto flex flex-col gap-4">
@@ -353,6 +386,7 @@ export const MentorDiscoveryPage = ({ onNavigate }) => {
                       availability={mentor.availability}
                       matchPercentage={mentor.matchPercentage}
                       photo={mentor.photo}
+                      onViewProfile={() => handleViewMentorProfile(mentor)}
                       onRequest={() => handleRequestMentor(mentor.id || mentor._id)}
                     />
                   </div>

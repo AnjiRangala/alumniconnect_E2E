@@ -10,25 +10,25 @@ export const Footer = () => {
           <div>
             <h4 className="font-semibold mb-4">Quick Links</h4>
             <ul className="text-gray-400 space-y-2">
-              <li><a href="#" className="hover:text-white">About Us</a></li>
-              <li><a href="#" className="hover:text-white">Contact</a></li>
-              <li><a href="#" className="hover:text-white">Blog</a></li>
+              <li>About Us</li>
+              <li>Contact</li>
+              <li>Blog</li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Support</h4>
             <ul className="text-gray-400 space-y-2">
-              <li><a href="#" className="hover:text-white">Help Center</a></li>
-              <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-white">Terms</a></li>
+              <li>Help Center</li>
+              <li>Privacy Policy</li>
+              <li>Terms</li>
             </ul>
           </div>
           <div>
             <h4 className="font-semibold mb-4">Connect</h4>
             <ul className="text-gray-400 space-y-2">
-              <li><a href="#" className="hover:text-white">LinkedIn</a></li>
-              <li><a href="#" className="hover:text-white">Twitter</a></li>
-              <li><a href="#" className="hover:text-white">Facebook</a></li>
+              <li>LinkedIn</li>
+              <li>Twitter</li>
+              <li>Facebook</li>
             </ul>
           </div>
         </div>
