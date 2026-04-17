@@ -2,7 +2,7 @@ import { useState, useContext } from 'react'
 import { Mail, Lock, Eye, EyeOff, ArrowLeft } from 'lucide-react'
 import { NavigationContext } from '../App.jsx'
 
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api`;
 
 export function LoginPage({ onNavigate }) {
   const [email, setEmail] = useState('')

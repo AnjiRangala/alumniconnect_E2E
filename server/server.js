@@ -2545,10 +2545,66 @@ app.post('/api/auth/reset-password-security', async (req, res) => {
 
 // POST /api/auth/reset-password - Reset password with token
 app.post('/api/auth/reset-password', async (req, res) => {
-  return res.status(410).json({
-    success: false,
-    message: 'Token reset is disabled. Please use security question based reset.'
-  });
+  try {
+    const mongoReady = await waitForMongoReady();
+    const { token, email, newPassword } = req.body;
+
+    if (!token || !email || !newPassword) {
+      return res.status(400).json({ success: false, message: 'Token, email, and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
+    // Hash the token to compare with stored hash
+    const resetTokenHash = crypto.createHash('sha256').update(token).digest('hex');
+
+    let user = null;
+    if (mongoReady) {
+      user = await User.findOne({
+        email: email.toLowerCase().trim(),
+        passwordResetToken: resetTokenHash,
+        passwordResetExpires: { $gt: new Date() } // Token must not be expired
+      });
+    } else {
+      user = users.find(u =>
+        u.email === email.toLowerCase().trim() &&
+        u.passwordResetToken === resetTokenHash &&
+        u.passwordResetExpires > new Date()
+      );
+    }
+
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid or expired reset token' });
+    }
+
+    // Update password
+    if (mongoReady) {
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+      await User.updateOne(
+        { _id: user._id },
+        {
+          $set: {
+            password: hashedPassword,
+            passwordResetToken: null,
+            passwordResetExpires: null
+          }
+        }
+      );
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      user.password = await bcrypt.hash(newPassword, salt);
+      user.passwordResetToken = null;
+      user.passwordResetExpires = null;
+    }
+
+    res.json({ success: true, message: 'Password reset successful. You can now login with your new password.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ success: false, message: 'Server error during password reset' });
+  }
 });
 
 // GET /api/auth/recent-logins - Get backend saved recent login credentials
